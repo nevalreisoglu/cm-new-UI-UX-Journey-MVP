@@ -209,6 +209,8 @@ export function useActions() {
       return version
     },
     deleteVersion: (journeyId: string, versionId: string) => dispatch({ type: 'deleteVersion', journeyId, versionId }),
+    addHistory: (journeyId: string, versionId: string, text: string) =>
+      dispatch({ type: 'updateVersion', journeyId, versionId, fn: (v, by, at) => ({ ...v, history: [...v.history, { at, by, text }] }) }),
     setNote: (journeyId: string, versionId: string, note: string) =>
       dispatch({ type: 'updateVersion', journeyId, versionId, fn: (v) => ({ ...v, note }) }),
   }
