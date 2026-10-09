@@ -451,7 +451,8 @@ body{font-size:14px;line-height:1.43}
 .crumb .right{margin-left:auto;display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0}
 .crumb{display:flex;align-items:center;gap:6px}
 .card-b{padding:8px 20px 16px}
-.row{display:flex;align-items:center;gap:8px}
+.hrow{display:flex;align-items:center;gap:8px}
+.card-h .btn{white-space:nowrap}
 .col{display:flex;flex-direction:column;gap:8px}
 .wrap{flex-wrap:wrap}
 .grow{flex:1}
@@ -1370,7 +1371,7 @@ const nowIso = () => new Date().toISOString();
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const fmtDate = (s, time) => { if (!s) return '—'; const d = new Date(s); const date = d.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }); return time ? `${date} ${d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })}` : date; };
 const fmtNum = n => Number(n).toLocaleString('en-CA');
-const $ = id => document.getElementById(id);
+const $ = id => document.getElementById(id) ?? document.querySelector(id.includes('#') ? id : '#' + id);
 const curJourney = () => JOURNEYS.find(j => j.id === app.journeyId);
 const curVersion = () => VERSIONS.find(v => v.id === app.versionId);
 function touch(j) { j.updatedAt = nowIso(); j.updatedBy = me().id; }
@@ -1457,8 +1458,82 @@ function render() {
 }
 function crumb(parts) { $('crumb').innerHTML = parts.map((p, i) => (i ? '<span class="sep" style="color:var(--ink-3)">›</span>' : '') + (p.act ? `<button data-act="${p.act}" data-arg="${esc(p.arg ?? '')}">${esc(p.label)}</button>` : `<span class="${i === parts.length - 1 ? 'cur' : ''}">${esc(p.label)}</span>`)).join('') + (parts.right ?? ''); }
 
-/* ---- step (a) placeholders; replaced in steps (b)–(e) ---- */
-function renderJourneyList() { crumb([{ label: 'Journeys' }]); $('view-journeys').innerHTML = `<div class="card"><div class="card-h"><h2>Journeys</h2><p>${JOURNEYS.length} journeys · ${CONTACTS.length} contacts · ${CONTACT_STATES.length} contact states seeded.</p></div></div>`; }
+/* ---- Screen 1 — Journey list [1][7] ----------------------------------------------- */
+const LIST_TABS = [['draft', 'Draft'], ['pending', 'Pending approval'], ['live', 'Live'], ['past', 'Past']];
+function renderJourneyList() {
+  crumb([{ label: 'Journeys' }]);
+  const f = app.list, since30 = iso(NOW.getTime() - 30 * DAY);
+  const rows = JOURNEYS.map(j => ({ j, v: primaryVersion(j), statuses: journeyStatuses(j), channels: channelsOf(primaryVersion(j)), entered30: CONTACT_STATES.filter(s => s.journeyId === j.id && s.receivedAt >= since30).length }));
+  const counts = Object.fromEntries(LIST_TABS.map(([t]) => [t, rows.filter(r => r.statuses.includes(t)).length]));
+  const shown = rows.filter(r => r.statuses.includes(f.tab) && (!f.q || r.j.name.toLowerCase().includes(f.q.toLowerCase())) && (!f.event || r.j.eventId === f.event) && (!f.channel || r.channels.includes(f.channel)) && (!f.contactList || r.j.contactList === f.contactList));
+  const rowHtml = ({ j, v, channels, entered30 }) => {
+    const pending = versionsOf(j.id).find(x => x.status === 'pending');
+    const main = f.tab === 'pending' && pending ? pending : v; // the approver's queue shows the version waiting
+    const others = versionsOf(j.id).filter(x => x.id !== main?.id && (x.status === 'closing' || x.status === 'pending'));
+    const vline = x => `<div class="hrow" style="gap:6px"><span class="nowrap">v${x.no}</span>${vpill(x.status)}${x.note ? `<span class="t2 nowrap">${esc(x.note)}</span>` : ''}</div>`;
+    return `<tr class="row" data-act="open-journey" data-arg="${j.id}" data-v="${main?.id ?? ''}" data-jid="${j.id}">
+      <td><div class="t1 hrow" style="gap:8px">${esc(j.name)}${j.overrideUnsubscribe ? `<span class="badge-ou" title="Messages in this journey can be sent to unsubscribed contacts">${icon('warn', 11)} Override unsubscribe</span>` : ''}</div><div class="t2 clamp" title="${esc(j.description)}">${j.contactList} · ${esc(j.description)}</div></td>
+      <td><div>${esc(eventById(j.eventId)?.name ?? j.eventId)}</div><div class="t2 mono">${j.eventId}</div></td>
+      <td><span class="chan-icons">${channels.map(chanIcon).join('')}</span></td>
+      <td>${main ? `<div class="col" style="gap:4px">${vline(main)}${others.map(o => `<div class="small">${vline(o)}</div>`).join('')}</div>` : '—'}</td>
+      <td class="r num">${fmtNum(entered30)}</td>
+      <td class="nw"><div>${fmtDate(j.updatedAt)}</div><div class="t2">${esc(userName(j.updatedBy))}</div></td>
+      <td class="nw" style="position:relative" data-stop="1"><button class="btn outline sm" data-act="open-journey" data-arg="${j.id}" data-v="${main?.id ?? ''}" data-jid="${j.id}">Open</button> <button class="btn outline sm" data-act="row-menu" data-arg="${j.id}">More ▾</button></td>
+    </tr>`;
+  };
+  $('view-journeys').innerHTML = `
+    <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <div class="card-h"><h2>Journeys</h2><button class="btn primary" id="btn-new-journey" data-act="new-journey">+ New journey</button><p>A journey starts from an event and moves each contact through its steps. Segment-based, scheduled sends are campaigns.</p></div>
+      <div class="card-b col" style="gap:12px;flex:1;min-height:0">
+        <div class="tabs" id="jl-tabs">${LIST_TABS.map(([t, l]) => `<button class="${f.tab === t ? 'on' : ''}" data-act="list-tab" data-arg="${t}">${l}<span class="cnt">${counts[t]}</span></button>`).join('')}${app.role === 'approver' && f.tab === 'pending' ? '<span class="muted small" style="align-self:center;margin-left:8px">Your approval queue</span>' : ''}</div>
+        <div class="hrow wrap" style="gap:10px">
+          <label class="search-in">${icon('search')}<input id="jl-q" placeholder="Search by name" value="${esc(f.q)}"></label>
+          <select class="inp" id="jl-event" style="width:200px"><option value="">All events</option>${EVENTS.map(e => `<option value="${e.id}" ${f.event === e.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select>
+          <select class="inp" id="jl-channel" style="width:150px"><option value="">All channels</option>${CHANNELS.map(c => `<option value="${c}" ${f.channel === c ? 'selected' : ''}>${CHANNEL_LABEL[c]}</option>`).join('')}</select>
+          <select class="inp" id="jl-list" style="width:160px"><option value="">All contact lists</option><option ${f.contactList === 'Customers' ? 'selected' : ''}>Customers</option><option ${f.contactList === 'Prospects' ? 'selected' : ''}>Prospects</option></select>
+          <span class="muted small right">${shown.length} journey${shown.length === 1 ? '' : 's'}</span>
+        </div>
+        <div style="overflow:auto;flex:1;min-height:0">
+          <table class="tbl" id="jl-table"><thead><tr><th>Journey</th><th>Event</th><th>Channels</th><th>Version</th><th class="r">Entered · 30 d</th><th>Last modified</th><th></th></tr></thead>
+          <tbody>${shown.length ? shown.map(rowHtml).join('') : '<tr><td colspan="7" class="empty">No journeys in this tab.</td></tr>'}</tbody></table>
+        </div>
+      </div>
+    </div>`;
+  $('jl-q').oninput = e => { app.list.q = e.target.value; renderJourneyList(); $('jl-q').focus(); $('jl-q').setSelectionRange(app.list.q.length, app.list.q.length); };
+  $('jl-event').onchange = e => { app.list.event = e.target.value; renderJourneyList(); };
+  $('jl-channel').onchange = e => { app.list.channel = e.target.value; renderJourneyList(); };
+  $('jl-list').onchange = e => { app.list.contactList = e.target.value; renderJourneyList(); };
+}
+function rowMenu(el, jid) {
+  document.querySelectorAll('.menu.rowmenu').forEach(m => m.remove());
+  const m = document.createElement('div'); m.className = 'menu rowmenu'; m.style.right = '12px'; m.style.top = '44px';
+  m.innerHTML = `<button data-act="open-journey" data-arg="${jid}">${icon('journeys')} Open editor</button><button data-act="go-monitor" data-arg="${jid}">${icon('monitor')} Open Monitor</button><button data-act="duplicate" data-arg="${jid}">${icon('copy')} Duplicate</button>`;
+  el.parentElement.appendChild(m);
+  setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
+}
+/* "+ New journey" (modal): name, event, single / batch, contact list → editor with Event entry + Exit, v1 Draft */
+function newJourneyModal() {
+  openModal(modalHtml('New journey', `
+    <div class="fld"><label class="req" for="nj-name">Name</label><input id="nj-name" placeholder="e.g. Device order abandonment" autofocus></div>
+    <div class="fld"><label for="nj-event">Event <small class="muted">— every journey starts from an event</small></label><select id="nj-event">${EVENTS.map(e => `<option value="${e.id}">${esc(e.name)} · ${e.id}</option>`).join('')}</select><small class="muted" id="nj-hint"></small></div>
+    <div class="form2" style="padding:0">
+      <div class="fld"><label>Entry</label><div class="seg" id="nj-mode"><button class="on" data-mode="single" type="button">Single</button><button data-mode="batch" type="button">Batch</button></div><small class="muted" id="nj-mode-hint">One contact per API call.</small></div>
+      <div class="fld"><label>Contact list</label><div class="seg" id="nj-list"><button class="on" data-list="Customers" type="button">Customers</button><button data-list="Prospects" type="button">Prospects</button></div></div>
+    </div>`, `<button class="btn outline" data-act="modal-close">Cancel</button><button class="btn primary" id="nj-create" disabled>Create journey</button>`));
+  const hint = () => { const e = eventById($('nj-event').value); $('nj-hint').textContent = `${e.description} Payload: ${e.payload.map(p => p.name).join(', ')}.`; };
+  hint(); $('nj-event').onchange = hint;
+  $('nj-name').oninput = () => { $('nj-create').disabled = !$('nj-name').value.trim(); };
+  $('nj-name').onkeydown = e => { if (e.key === 'Enter' && $('nj-name').value.trim()) $('nj-create').click(); };
+  for (const id of ['nj-mode', 'nj-list']) $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (id === 'nj-mode') $('nj-mode-hint').textContent = b.dataset.mode === 'single' ? 'One contact per API call.' : 'Many contacts per API call. Batch entry is API only — no file upload.'; });
+  $('nj-create').onclick = () => {
+    const { j, v } = createJourney({ name: $('nj-name').value.trim(), eventId: $('nj-event').value, entryMode: $('nj-mode .on, #nj-mode .on').dataset.mode, contactList: $('nj-list .on, #nj-list .on').dataset.list });
+    closeModal(); toast('Journey created', 'Event entry and Exit are already placed. Add steps on the connection between them.');
+    openEditor(j.id, v.id, v.steps[0].id);
+  };
+  setTimeout(() => $('nj-name').focus(), 30);
+}
+
+/* ---- step (a) placeholders; replaced in steps (c)–(e) ---- */
 function renderEditor() { crumb([{ label: 'Journeys', act: 'go-journeys' }, { label: curJourney()?.name ?? '' }]); $('view-editor').innerHTML = `<div class="card"><div class="card-h"><h2>${esc(curJourney()?.name ?? '')}</h2></div></div>`; }
 function renderMonitor() { crumb([{ label: 'Journey Monitor' }]); $('view-monitor').innerHTML = `<div class="card"><div class="card-h"><h2>Journey Monitor</h2></div></div>`; }
 function fitCanvas() {}
@@ -1471,6 +1546,11 @@ document.addEventListener('click', e => {
   if (act === 'go-journeys') { showView('journeys'); return; }
   if (act === 'go-editor') { openEditor(arg, el.dataset.v || undefined); return; }
   if (act === 'go-monitor') { openMonitor(arg); return; }
+  if (act === 'list-tab') { app.list.tab = arg; renderJourneyList(); return; }
+  if (act === 'new-journey') { newJourneyModal(); return; }
+  if (act === 'row-menu') { e.stopPropagation(); rowMenu(el, arg); return; }
+  if (act === 'open-journey') { if (e.target.closest('[data-stop]') && el.tagName === 'TR') return; openEditor(el.dataset.jid ?? arg, el.dataset.v || undefined); return; }
+  if (act === 'duplicate') { const j = JOURNEYS.find(x => x.id === arg); const c = duplicateJourney(j); toast('Journey duplicated', `“${c.name}” created as a draft.`); app.list.tab = 'draft'; renderJourneyList(); return; }
   if (typeof handleAct === 'function') handleAct(act, arg, el, e);
 });
 document.querySelectorAll('.nav button[data-view]').forEach(b => b.addEventListener('click', () => { if (b.dataset.view === 'monitor') openMonitor(app.journeyId ?? app.monitor.journeyId); else showView('journeys'); }));
