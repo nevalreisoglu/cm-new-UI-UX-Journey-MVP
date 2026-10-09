@@ -64,7 +64,7 @@ look like they came from that file.
 | 2 | Per-customer journey state | each contact's current step and status (Waiting / In step / Exited / Skipped / Control group); Exit node |
 | 3 | Event-triggered entry | single and batch API entry; create contact if missing; payload fields as placeholders; "processed within 60 s" |
 | 4 | Delivery step parity with campaigns | one Delivery step, channel chosen inside (Email / SMS / Push); content picked from a list (channel default preselected); offer; communication rules (policy); override unsubscribe; skip when channel unreachable |
-| 5 | Flow nodes | segment split (+ fixed Remaining), engagement split (opened / clicked + Remaining), shuffle split (%), control group, Wait (Duration / Until / For event / For segment match) |
+| 5 | Flow nodes | segment split (+ fixed Remaining), engagement split (opened / clicked + Remaining), shuffle split (%), parallel split (2–5 paths, all at once), control group, Wait (Duration / Until / For event / For segment match) |
 | 6 | Monitoring | step stats on canvas; version and channel breakdown; per-contact event log; single-contact lookup |
 | 7 | Management + test | journey list with status tabs; contact list (Customers / Prospects); test send |
 
@@ -94,9 +94,12 @@ Data model:
 - `Version {id, journeyId, no, status, note, createdBy, createdAt, submittedBy, submittedAt,
   approvedBy, approvedAt, rejectComment, history[], steps[], edges[]}`
 - `Step {id, type: 'event'|'delivery'|'wait'|'segmentSplit'|'engagementSplit'|'shuffleSplit'|
-  'controlGroup'|'exit', name, config}`
+  'parallelSplit'|'controlGroup'|'exit', name, config}`
 - `Edge {from, to, label}` — label is the path name ("A", "Remaining", "Opened", "90 %" …).
-- `ContactState {contactId, versionId, stepId, status, history: [{stepId, event, at, detail}]}`
+- `ContactState {contactId, versionId, stepId, status, history: [{stepId, event, at, detail, leg?}],
+  legs: [{pathId, splitId, label, stepId, status}]}` — after a Parallel split the contact is
+  tracked per path (`pathId` = `<splitId>:<path>`, log entries carry `leg`); the contact's own
+  status is Exited only when every leg has reached an Exit, otherwise the first leg still inside.
 
 Roles: `marketer`, `approver` via `data-roles`, applied by `applyRole()` (same pattern as
 CM-New-UI-UX2). Views via `data-view` on the left nav.
@@ -136,6 +139,7 @@ Reset demo data.
 - Stop (Closing / Closed) needs no approval.
 - Approve: version → Active; previous Active → Closing. Reject: version → Draft with the comment
   shown on the version.
+- Diff: a Parallel split with paths added or removed counts as a changed step.
 - **View changes** (approver): canvas of the pending version with steps coloured vs. the current
   Active one — added green (`--ok`), removed red (`--bad`, shown as ghost cards), changed amber
   (`--warn`) — plus a side list of changes and the marketer's note.
@@ -146,7 +150,7 @@ chip on the journey), test users.
 
 ### Palette (left)
 Entry: Event · Delivery · Wait (type chosen inside the card) · Split: Segment, Engagement,
-Shuffle · Action: Control group, Exit.
+Shuffle, Parallel · Action: Control group, Exit.
 
 ### Canvas (centre)
 - **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets, and any structural change (add / remove a step or branch) resets too. Horizontal (default) / Vertical
@@ -170,11 +174,8 @@ Shuffle · Action: Control group, Exit.
   never on a connector.
 - **Selected card:** 2 px `--cta` outline; the connectors of its path (entry → card) are
   highlighted in `--cta`.
-- **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
-  more than one outgoing connection: "Add parallel branch" in its panel adds an open path
-  (its ghost card takes the step), "×" on the branch in the panel removes it. Contacts take
-  every branch at the same time. Edges of parallel branches carry the labels `∥2`, `∥3`, …;
-  the main connection keeps `""`.
+- **Branching happens only through splits.** No step other than a split has more than one
+  outgoing connector. Parallel work uses the Parallel split (below).
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
   outline when invalid. Cards grow to fit their fields and auto-layout uses the real card size.
@@ -223,13 +224,17 @@ policy, unsubscribe option, help texts, add / reorder paths.
 - **Engagement split [5]:** linked Delivery (only earlier Deliveries on the path);
   Opened / Clicked + Remaining.
 - **Shuffle split [5]:** paths with %, "Split evenly", must total 100.
+- **Parallel split [5]:** 2–5 paths labelled "Path 1", "Path 2", … (add / remove in the card
+  and the panel; removing renumbers). The contact goes down ALL paths at once; drawn like the
+  other splits (trunk, spine, labelled branches). Info: "Contacts go down every path at the
+  same time. They count as exited only when every path has reached an Exit."
 - **Control group [5]:** name; info "Contacts stop here and are kept for comparison."
 - **Exit:** no settings.
 
 ### Validation  [1]
 "Validate" in the toolbar and automatically before Submit (blocking). Checks: no entry; split
-without segment; shuffle ≠ 100; engagement split without linked Delivery; Delivery without
-channel or content; Wait for event without an event or a timeout; Wait for segment match
+without segment; shuffle ≠ 100; parallel split with fewer than 2 paths; engagement split without linked
+Delivery; Delivery without channel or content; Wait for event without an event or a timeout; Wait for segment match
 without a segment or a timeout; path without Exit (both paths of a two-path Wait). Each issue is clickable and selects the step.
 
 ### Test send  [7]
@@ -248,7 +253,9 @@ Journey select + date range; three tabs.
 3. **Contacts:** contacts waiting in a Wait show status "Waiting · <wait type>"; search by id / email / phone; filters: step, status. Columns: contact, event,
    received at, current step, status, last delivery result. Row click → side panel
    **"Where is this contact now?"**: payload, timeline (entered, waited, sent, opened /
-   skipped, exited), path highlighted on a mini canvas.
+   skipped, exited), path highlighted on a mini canvas. After a Parallel split the timeline
+   shows the paths side by side, one column per path with its own status; the contacts table
+   notes "n parallel paths" and the step filter matches any path.
 
 ## Mock data
 - `EVENTS`: order_abandoned (device_name, cart_url, price), account_created (plan_name,
@@ -264,7 +271,7 @@ Journey select + date range; three tabs.
   |---|---|---|
   | Device order abandonment | Live; v14 Active ("V14 – new template"), v13 Closing | batch event; segment split Français / Français + account today / English / English + account today / Remaining; one Delivery per path, each followed by "Wait for order_completed · timeout 24 h" → Received → Exit, Timeout → SMS reminder → Exit; payload placeholders |
   | Device back in stock | Live | single event, Prospects list, override unsubscribe |
-  | Welcome – account created | Live; v2 Active ("V2 – add control group") | segment split FR / EN, shuffle 90/10 → control group, email Delivery with offer, wait 3 days with send window 09:00–20:00 Mon–Sat, engagement split → Push / SMS, skipped contacts |
+  | Welcome – account created | Live; v2 Active ("V2 – add control group") | segment split FR / EN, shuffle 90/10 → control group, email Delivery with offer, then Parallel split → Path 1: wait 3 days with send window 09:00–20:00 Mon–Sat → engagement split → Push / SMS; Path 2: Push "Download the app" → Exit; skipped contacts |
   | Payment failed – reminder | Pending approval; v3 (one step added, one wait changed vs. v2) | approval and View changes |
   | Plan change – confirmation | Draft | validation errors |
   | Summer roaming promo | Past | closed versions |

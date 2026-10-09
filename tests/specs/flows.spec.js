@@ -130,3 +130,39 @@ test('reset demo data discards session changes', async ({ page }) => {
   await page.waitForTimeout(200);
   expect(await page.locator('#jl-tabs button[data-arg="draft"] .cnt').innerText()).toBe('1');
 });
+
+test('parallel split: 2–5 paths from card and panel, every path tracked per contact', async ({ page }) => {
+  const errors = await open(page);
+  await page.click('#btn-new-journey');
+  await page.waitForTimeout(300);
+  await page.locator('.eplus').first().hover({ force: true });
+  await page.locator('.eplus').first().click();
+  await page.locator('.menu.stepmenu button[data-type="parallelSplit"]').click();
+  await page.waitForTimeout(200);
+  // Path 1 took over the Exit; Path 2 is open → ghost card + validation issue
+  expect(await page.locator('.edge rect.pill').count()).toBe(2);
+  expect(await page.locator('.ghost').count()).toBe(1);
+  await expect(page.locator('#valbar')).toContainText('Path 2: path does not end with Exit');
+  // add a path on the card, remove it again from the panel; never below 2
+  await page.click('.node button[data-pact="par-add"]');
+  await page.waitForTimeout(200);
+  expect(await page.locator('.ghost').count()).toBe(2);
+  await page.click('.jinfo button[data-act="par-remove"][data-arg="2"]');
+  await page.waitForTimeout(200);
+  expect(await page.locator('.ghost').count()).toBe(1);
+  await expect(page.locator('.jinfo button[data-act="par-remove"]').first()).toBeDisabled();
+  // Exit on Path 2 → valid
+  await page.locator('.ghost').click();
+  await page.locator('.menu.stepmenu button[data-type="exit"]').click();
+  await expect(page.locator('#valbar')).toHaveClass(/ok/);
+
+  // Monitor: the welcome journey's contacts carry one leg per path; a contact is Exited only when every path has
+  await page.click('.nav button[data-view="monitor"]');
+  await page.selectOption('#msel', 'j-welcome');
+  await page.click('button[data-act="m-tab"][data-arg="contacts"]');
+  const legs = await page.evaluate(() => { const st = CONTACT_STATES.filter(s => s.versionId === 'wl2' && s.legs.length); return { n: st.length, bad: st.filter(s => s.status === 'Exited' && s.legs.some(l => l.status === 'Waiting' || l.status === 'In step')).length, two: st.every(s => s.legs.length === 2) }; });
+  expect(legs.n).toBeGreaterThan(50); expect(legs.bad).toBe(0); expect(legs.two).toBe(true);
+  await page.locator('#mc-table tr.row:has-text("parallel paths")').first().click();
+  await expect(page.locator('.drawer .tlcols .tlcol')).toHaveCount(2);
+  expect(errors, errors.join('\n')).toEqual([]);
+});

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.5 — Parallel split
+- New split with 2–5 "Path n" paths (add / remove on the card and in the panel), contacts go
+  down every path at once and are tracked per path; Monitor timeline shows the paths side by
+  side; validation, diff and the welcome mock (Path 2: Push "Download the app") updated.
+  The `∥` parallel branches and "Add parallel branch" are gone: branching only through splits.
+
 ## v0.4 — connectors
 - Orthogonal connectors (trunk → spine → branch) with label pills, fixed column / row spacing,
   hover-only "+" on connections, ghost "+ Add step" cards on open paths, selected path

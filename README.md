@@ -111,7 +111,11 @@ Where the brief was ambiguous the simpler behaviour was chosen (see also `docs/d
     truncated at 24 characters, full name on hover), so a journey with long segment names
     gets wider columns than one without splits.
 21. **Free-positioned cards** keep the elbow routing; a card dragged behind its parent is
-    routed around it. Parallel branches are added from the panel only (no drag-to-connect).
+    routed around it. Branching happens only through splits (no drag-to-connect).
+22. **Parallel split status**: a contact whose paths have all exited is *Exited*, or *Skipped*
+    when its last delivery on any path was skipped; while a path is still inside, the contact's
+    status and current step follow the first such path. Nested parallel splits are allowed but
+    not in the mock; paths never merge.
 
 ## Out of scope
 

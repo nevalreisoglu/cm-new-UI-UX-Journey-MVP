@@ -642,6 +642,16 @@ details summary{cursor:pointer}
 .tl .dot::before{content:"";position:absolute;left:7px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--brand-lilac);border:2px solid #fff;box-shadow:0 0 0 1px var(--brand-lilac)}
 .tl .dot::after{content:"";position:absolute;left:10px;top:16px;bottom:-6px;width:2px;background:var(--line)}
 .tl:last-child .dot::after{display:none}
+.tlcols{display:grid;gap:12px;margin-top:10px;padding-top:10px;border-top:1px dashed var(--line)}
+.tlcol{min-width:0}
+.tlcol .tlhead{display:flex;align-items:center;gap:8px;font-size:12.5px;margin-bottom:6px}
+.tl.c{grid-template-columns:18px 1fr;padding-bottom:8px}
+.tl.c .dot::after{bottom:-2px}
+.nf .nx{flex:none;width:20px;height:20px;border:1px solid var(--line);border-radius:4px;background:#fff;color:var(--ink-3);font-size:13px;line-height:1;cursor:pointer;padding:0}
+.nf .nx:hover:not(:disabled){border-color:var(--bad);color:var(--bad)}
+.nf .nx:disabled{opacity:.4;cursor:default}
+.nf .nadd{flex:1;height:22px;border:1px dashed var(--line);border-radius:4px;background:#fff;color:var(--ink-2);font:600 11px var(--sans);cursor:pointer}
+.nf .nadd:hover{border-color:var(--cta);color:var(--cta)}
 .tl.k-sent .dot::before{background:var(--cta);box-shadow:0 0 0 1px var(--cta)}
 .tl.k-opened .dot::before,.tl.k-clicked .dot::before{background:var(--ok);box-shadow:0 0 0 1px var(--ok)}
 .tl.k-skipped .dot::before{background:var(--bad);box-shadow:0 0 0 1px var(--bad)}
@@ -826,6 +836,8 @@ const CONTENT_ITEMS = [
   pu('p-stock-en', 'Back in stock', 'en', 'Back in stock', '{{device_name}} is available', '{{product_url}}'),
   pu('p-tips-fr', 'Astuces application', 'fr', 'Découvrez l’application', 'Gérez votre forfait {{plan_name}} en un clic', 'https://app.example.com/tips'),
   pu('p-tips-en', 'App tips', 'en', 'Discover the app', 'Manage your {{plan_name}} plan in one tap', 'https://app.example.com/tips'),
+  pu('p-download-fr', 'Téléchargez l’application', 'fr', 'Téléchargez l’application', 'Votre forfait {{plan_name}} est prêt — gérez-le dans l’app', 'https://app.example.com/get'),
+  pu('p-download-en', 'Download the app', 'en', 'Download the app', 'Your {{plan_name}} plan is ready — manage it in the app', 'https://app.example.com/get'),
   pu('p-payment-fr', 'Dernier rappel de paiement', 'fr', 'Dernier rappel', 'Paiement de {{amount}} $ attendu avant le {{due_date}}', '{{pay_url}}'),
   pu('p-payment-en', 'Last payment reminder', 'en', 'Last reminder', '{{amount}} $ payment due before {{due_date}}', '{{pay_url}}'),
 ];
@@ -868,6 +880,8 @@ const S = {
   seg: (id, name, segments) => ({ id, type: 'segmentSplit', name, config: { segments } }),
   eng: (id, name, deliveryStepId) => ({ id, type: 'engagementSplit', name, config: { deliveryStepId } }),
   shuffle: (id, name, paths) => ({ id, type: 'shuffleSplit', name, config: { paths } }),
+  /* Parallel split: contacts go down every path at once; paths are "Path 1", "Path 2", … (2–5) */
+  par: (id, name, n = 2) => ({ id, type: 'parallelSplit', name, config: { paths: Array.from({ length: n }, (_, i) => `Path ${i + 1}`) } }),
   control: (id, name) => ({ id, type: 'controlGroup', name, config: { name } }),
   exit: id => ({ id, type: 'exit', name: 'Exit', config: {} }),
 };
@@ -935,7 +949,11 @@ function welcomeBuild(v) {
       S.eng(`${b}-eng`, `Opened the welcome email? (${L(lang)})`, `${b}-email`),
       S.delivery(`${b}-push`, `Push – app tips ${L(lang)}`, 'push', `p-tips-${lang}`), S.exit(`${b}-exit-a`),
       S.delivery(`${b}-sms`, `SMS – gift reminder ${L(lang)}`, 'sms', `s-gift-${lang}`, { offerId: 'off-5gb' }), S.exit(`${b}-exit-b`), S.exit(`${b}-exit-c`));
-    edges.push(E(`${b}-email`, `${b}-wait`), E(`${b}-wait`, `${b}-eng`), E(`${b}-eng`, `${b}-push`, 'Opened'), E(`${b}-push`, `${b}-exit-a`), E(`${b}-eng`, `${b}-sms`, 'Clicked'), E(`${b}-sms`, `${b}-exit-b`), E(`${b}-eng`, `${b}-exit-c`, 'Remaining'));
+    if (v === 2) { // Parallel split after the offer email: Path 1 waits for the engagement split, Path 2 pushes the app download at once
+      steps.push(S.par(`${b}-par`, `Follow-up ${L(lang)}`, 2), S.delivery(`${b}-app`, `Push – download the app ${L(lang)}`, 'push', `p-download-${lang}`), S.exit(`${b}-exit-d`));
+      edges.push(E(`${b}-email`, `${b}-par`), E(`${b}-par`, `${b}-wait`, 'Path 1'), E(`${b}-par`, `${b}-app`, 'Path 2'), E(`${b}-app`, `${b}-exit-d`));
+    } else edges.push(E(`${b}-email`, `${b}-wait`));
+    edges.push(E(`${b}-wait`, `${b}-eng`), E(`${b}-eng`, `${b}-push`, 'Opened'), E(`${b}-push`, `${b}-exit-a`), E(`${b}-eng`, `${b}-sms`, 'Clicked'), E(`${b}-sms`, `${b}-exit-b`), E(`${b}-eng`, `${b}-exit-c`, 'Remaining'));
   }
   return { steps, edges };
 }
@@ -1020,8 +1038,7 @@ function simulateVersion(journey, v, contacts) {
   const pool = contactsOf(journey.contactList);
   const entry = v.steps.find(s => s.type === 'event'); if (!entry) return [];
   const stepOf = id => v.steps.find(s => s.id === id);
-  const nextOf = (id, label) => v.edges.find(e => e.from === id && (label === undefined ? !isParKey(e.label) : e.label === label))?.to ?? null;
-  const parallelOf = id => v.edges.filter(e => e.from === id && isParKey(e.label) && e.to).map(e => e.to);
+  const nextOf = (id, label) => v.edges.find(e => e.from === id && e.label === label)?.to ?? null;
   const now = NOW.getTime(), out = [];
   for (let i = 0; i < count; i++) {
     const contact = pool[(Math.floor(hash01(v.id + i) * pool.length) + i * 7) % pool.length];
@@ -1029,8 +1046,8 @@ function simulateVersion(journey, v, contacts) {
     const recent = to === 0 && rng.chance(0.04);
     let t = recent ? now - rng.int(1, 4) * MIN : now - to * DAY - rng.next() * (from - to) * DAY;
     const receivedAt = iso(t);
-    const history = []; let status = 'Exited', lastDelivery = '—', lastSkipped = false, waitKind = null;
-    const push = (stepId, event, detail, extra = {}) => history.push({ stepId, event, at: iso(t), detail, ...extra });
+    const history = [], legs = []; let status = 'Exited', lastDelivery = '—', lastSkipped = false, waitKind = null, leg = null; // leg = the parallel path being walked (pathId)
+    const push = (stepId, event, detail, extra = {}) => history.push({ stepId, event, at: iso(t), detail, ...(leg ? { leg } : {}), ...extra });
     const walkFrom = (startStep, t0) => { let cur = startStep; t = t0;
     walk: while (cur) {
       push(cur.id, 'entered', `Entered “${cur.name}”`);
@@ -1092,14 +1109,32 @@ function simulateVersion(journey, v, contacts) {
         }
         case 'controlGroup': push(cur.id, 'control', `Kept for comparison in “${cur.config.name}”`); status = 'Control group'; break walk;
         case 'exit': push(cur.id, 'exited', 'Exited the journey'); status = lastSkipped ? 'Skipped' : 'Exited'; break walk;
+        case 'parallelSplit': { // the contact goes down every path at once; each path is tracked as its own leg
+          const t0 = t, outerLeg = leg;
+          for (const key of cur.config.paths) {
+            leg = outerLeg; t = t0; push(cur.id, 'split', `Path: ${key}`, { label: key });
+            const nextId = nextOf(cur.id, key), pathId = `${cur.id}:${key}`;
+            leg = pathId; status = 'Exited'; waitKind = null; lastSkipped = false;
+            const start = history.length;
+            if (nextId) walkFrom(stepOf(nextId), t0); else { t = t0; push(cur.id, 'exited', 'Path ended'); }
+            const entered = history.slice(start).filter(l => l.event === 'entered' && l.leg === pathId);
+            legs.push({ pathId, splitId: cur.id, label: key, stepId: entered.length ? entered[entered.length - 1].stepId : cur.id, status, waitKind, lastDelivery });
+          }
+          leg = outerLeg; break walk;
+        }
       }
-      for (const pid of isSplit(cur) ? [] : parallelOf(cur.id)) { const ps = stepOf(pid); if (ps) { const saved = { status, waitKind, lastDelivery, lastSkipped }; walkFrom(ps, t); ({ status, waitKind, lastDelivery, lastSkipped } = saved); } } // parallel branches: the contact takes all of them
-      const nextId = nextOf(cur.id, isSplit(cur) ? label : undefined);
+      const nextId = nextOf(cur.id, label);
       if (!nextId) { push(cur.id, 'exited', 'Path ended'); status = 'Exited'; break; }
       cur = stepOf(nextId);
     } };
     walkFrom(entry, t);
-    out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, waitKind, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
+    let stepId = history[history.length - 1].stepId;
+    if (legs.length) { // a contact counts as Exited only when every path has reached an Exit; its current step is the first path still inside
+      const inside = legs.find(l => l.status === 'Waiting' || l.status === 'In step');
+      const pick = inside ?? legs.find(l => l.status === 'Control group') ?? legs.find(l => l.status === 'Skipped') ?? legs[legs.length - 1];
+      ({ status, waitKind, stepId } = pick); lastDelivery = legs.map(l => l.lastDelivery).filter(x => x !== '—').pop() ?? lastDelivery;
+    }
+    out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId, status, waitKind, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history, legs });
   }
   return out;
 }
@@ -1178,13 +1213,14 @@ const STEP_META = {
   segmentSplit: { k: 'Segment split', tint: 'cond', icon: 'segment' },
   engagementSplit: { k: 'Engagement split', tint: 'cond', icon: 'engagement' },
   shuffleSplit: { k: 'Shuffle split', tint: 'par', icon: 'shuffle' },
+  parallelSplit: { k: 'Parallel split', tint: 'par', icon: 'parallel' },
   controlGroup: { k: 'Control group', tint: 'wait', icon: 'control' },
   exit: { k: 'Exit', tint: 'exit', icon: 'exit' },
 };
-/* palette: Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle · Action: Control group, Exit */
+/* palette: Entry: Event · Message: Delivery · Wait · Split: Segment, Engagement, Shuffle, Parallel · Action: Control group, Exit */
 const PALETTE = [
   { grp: 'Entry', type: 'event', label: 'Event' }, { grp: 'Message', type: 'delivery', label: 'Delivery' }, { grp: 'Wait', type: 'wait', label: 'Wait' },
-  { grp: 'Split', type: 'segmentSplit', label: 'Segment' }, { grp: 'Split', type: 'engagementSplit', label: 'Engagement' }, { grp: 'Split', type: 'shuffleSplit', label: 'Shuffle' },
+  { grp: 'Split', type: 'segmentSplit', label: 'Segment' }, { grp: 'Split', type: 'engagementSplit', label: 'Engagement' }, { grp: 'Split', type: 'shuffleSplit', label: 'Shuffle' }, { grp: 'Split', type: 'parallelSplit', label: 'Parallel' },
   { grp: 'Action', type: 'controlGroup', label: 'Control group' }, { grp: 'Action', type: 'exit', label: 'Exit' },
 ];
 let idSeq = 1000;
@@ -1198,29 +1234,37 @@ function newStep(type) {
     case 'segmentSplit': return S.seg(uid('s'), 'Segment split', [null]);
     case 'engagementSplit': return S.eng(uid('s'), 'Engagement split', null);
     case 'shuffleSplit': return S.shuffle(uid('s'), 'Shuffle split', [{ label: 'A', pct: 50 }, { label: 'B', pct: 50 }]);
+    case 'parallelSplit': return S.par(uid('s'), 'Parallel split', 2);
     case 'controlGroup': return S.control(uid('s'), 'Control group');
     case 'exit': return S.exit(uid('s'));
   }
 }
 /* the paths that leave a step: key = edge label, label = what the canvas shows */
-const PAR = '∥';
-function isParKey(k) { return typeof k === 'string' && k.startsWith('∥'); }
-/* parallel branches: extra connections leaving a single-outlet step; contacts take all of them */
-function parallelOutlets(step, v) { return (v ?? CUR_V)?.edges.filter(e => e.from === step.id && isParKey(e.label)).map(e => ({ key: e.label, label: '' })) ?? []; }
-let CUR_V = null; // the version outletsOf reads parallel branches from (set by callers that have one)
+let CUR_V = null; // the version being edited / drawn (set by callers that have one)
 function outletsOf(step, v) {
   switch (step.type) {
-    case 'event': case 'delivery': return [{ key: '', label: '' }, ...parallelOutlets(step, v)];
-    case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }, ...parallelOutlets(step, v)];
+    case 'event': case 'delivery': return [{ key: '', label: '' }];
+    case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }];
     case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: `${String.fromCharCode(65 + i)} · ${sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}`}` })), { key: 'Remaining', label: 'Remaining' }];
     case 'engagementSplit': return [{ key: 'Opened', label: 'Opened' }, { key: 'Clicked', label: 'Clicked' }, { key: 'Remaining', label: 'Remaining' }];
     case 'shuffleSplit': return step.config.paths.map(p => ({ key: p.label, label: `${p.label} · ${p.pct} %` }));
+    case 'parallelSplit': return step.config.paths.map(k => ({ key: k, label: k }));
     default: return [];
   }
 }
-function isSplit(s) { return s.type === 'segmentSplit' || s.type === 'engagementSplit' || s.type === 'shuffleSplit' || (s.type === 'wait' && (s.config.kind === 'event' || s.config.kind === 'segment')); }
-const canParallel = s => s.type === 'event' || s.type === 'delivery' || (s.type === 'wait' && !isSplit(s));
-function addParallel(v, step) { const n = v.edges.filter(e => e.from === step.id && isParKey(e.label)).length + 2; v.edges.push(E(step.id, null, `${PAR}${n}`)); }
+/* branching happens only through splits: no other step has more than one outgoing connection */
+function isSplit(s) { return s.type === 'segmentSplit' || s.type === 'engagementSplit' || s.type === 'shuffleSplit' || s.type === 'parallelSplit' || (s.type === 'wait' && (s.config.kind === 'event' || s.config.kind === 'segment')); }
+const PAR_MAX = 5, PAR_MIN = 2;
+/* Parallel split paths: add one (up to 5); remove one — the steps on it go too and the others are renumbered */
+function parAddPath(v, step) { if (step.config.paths.length >= PAR_MAX) return false; step.config.paths.push(`Path ${step.config.paths.length + 1}`); return true; }
+function parRemovePath(v, step, i) {
+  if (step.config.paths.length <= PAR_MIN) return false;
+  const key = step.config.paths[i], e = edgeOut(v, step.id, key);
+  if (e) { const drop = new Set(e.to ? [e.to, ...descendants(v, e.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== e && !drop.has(x.from) && !drop.has(x.to)); }
+  step.config.paths.splice(i, 1);
+  step.config.paths.forEach((k, n) => { const nk = `Path ${n + 1}`; if (k !== nk) { const ed = edgeOut(v, step.id, k); if (ed) ed.label = nk; step.config.paths[n] = nk; } });
+  return true;
+}
 const stepOf = (v, id) => v.steps.find(s => s.id === id);
 const entryOf = v => v.steps.find(s => s.type === 'event');
 const edgeOut = (v, id, key) => v.edges.find(e => e.from === id && e.label === key);
@@ -1269,6 +1313,7 @@ function stepSummary(step, v) {
     case 'segmentSplit': return `${c.segments.length} segment${c.segments.length === 1 ? '' : 's'} + Remaining`;
     case 'engagementSplit': return c.deliveryStepId ? `On “${stepOf(v, c.deliveryStepId)?.name ?? '?'}”` : 'No linked delivery';
     case 'shuffleSplit': return c.paths.map(p => `${p.pct} %`).join(' / ');
+    case 'parallelSplit': return `${c.paths.length} paths at once`;
     case 'controlGroup': return 'Kept for comparison';
     case 'exit': return 'End of journey';
   }
@@ -1323,6 +1368,7 @@ function validateVersion(v) {
     const c = s.config;
     if (s.type === 'segmentSplit' && (c.segments.length === 0 || c.segments.some(x => !x))) issues.push({ stepId: s.id, message: `“${s.name}”: segment split without a segment on every path.` });
     if (s.type === 'shuffleSplit') { const t = c.paths.reduce((a, p) => a + (+p.pct || 0), 0); if (t !== 100) issues.push({ stepId: s.id, message: `“${s.name}”: shuffle split paths total ${t} %, not 100 %.` }); }
+    if (s.type === 'parallelSplit' && c.paths.length < PAR_MIN) issues.push({ stepId: s.id, message: `“${s.name}”: parallel split needs at least 2 paths.` });
     if (s.type === 'engagementSplit' && (!c.deliveryStepId || !stepOf(v, c.deliveryStepId))) issues.push({ stepId: s.id, message: `“${s.name}”: engagement split without a linked delivery.` });
     if (s.type === 'wait' && c.kind === 'event' && (!c.eventId || !(c.timeoutAmount > 0))) issues.push({ stepId: s.id, message: `“${s.name}”: wait for event needs an event and a timeout.` });
     if (s.type === 'wait' && c.kind === 'segment' && (!c.segmentId || !(c.timeoutAmount > 0))) issues.push({ stepId: s.id, message: `“${s.name}”: wait for segment match needs a segment and a timeout.` });
@@ -1355,6 +1401,7 @@ function describeChange(o, s) {
   if (s.type === 'wait') return `${waitSummary(o)} → ${waitSummary(s)}`;
   if (s.type === 'delivery') { const b = []; if (o.config.channel !== s.config.channel) b.push('channel'); if (o.config.offerId !== s.config.offerId) b.push('offer'); if (o.config.policyId !== s.config.policyId) b.push('communication rules'); if (o.config.sendToUnsubscribed !== s.config.sendToUnsubscribed) b.push('send to unsubscribed'); return b.length ? `Changed: ${b.join(', ')}` : 'Next step changed'; }
   if (s.type === 'shuffleSplit') return 'Shuffle paths changed';
+  if (s.type === 'parallelSplit') return o.config.paths.length !== s.config.paths.length ? `Paths: ${o.config.paths.length} → ${s.config.paths.length}` : 'Next step changed';
   if (s.type === 'segmentSplit') return 'Segments changed';
   if (s.type === 'engagementSplit') return 'Linked delivery changed';
   if (s.type === 'event') return `Entry: ${o.config.eventId} / ${o.config.entryMode} → ${s.config.eventId} / ${s.config.entryMode}`;
@@ -1368,7 +1415,7 @@ function nodeRows(step) {
   switch (step.type) {
     case 'event': return 4; case 'delivery': return 2; case 'wait': return step.config.kind === 'duration' ? (step.config.window ? 3 : 2) : step.config.kind === 'until' ? 2 : 3;
     case 'segmentSplit': return step.config.segments.length + 1; case 'engagementSplit': return 2;
-    case 'shuffleSplit': return step.config.paths.length; case 'controlGroup': return 1; default: return 0;
+    case 'shuffleSplit': return step.config.paths.length; case 'parallelSplit': return step.config.paths.length + (CUR_V?.status === 'draft' && step.config.paths.length < PAR_MAX ? 1 : 0); case 'controlGroup': return 1; default: return 0;
   }
 }
 const nodeH = step => { const r = nodeRows(step); return r ? FIELD_TOP + r * FIELD_H + 8 : NH; };
@@ -1462,7 +1509,8 @@ function stepStats(v, states) {
   for (const st of states) {
     for (const l of st.history) { const o = out[l.stepId]; if (!o) continue;
       if (l.event === 'entered') o.entered++; else if (l.event === 'sent') o.sent++; else if (l.event === 'skipped') o.skipped++; else if (l.event === 'opened') o.opened++; else if (l.event === 'clicked') o.clicked++; else if (l.event === 'control') o.control++; else if (l.event === 'split') o.paths[l.label] = (o.paths[l.label] ?? 0) + 1; }
-    if (st.status === 'Waiting' || st.status === 'In step') { const o = out[st.stepId]; if (o) o.waiting++; }
+    if (st.legs?.length) { for (const l of st.legs) if (l.status === 'Waiting' || l.status === 'In step') { const o = out[l.stepId]; if (o) o.waiting++; } }
+    else if (st.status === 'Waiting' || st.status === 'In step') { const o = out[st.stepId]; if (o) o.waiting++; }
   }
   for (const o of Object.values(out)) o.exited = o.entered - o.waiting;
   return out;
@@ -1547,7 +1595,7 @@ function duplicateJourney(j) {
 const ICONS = {
   journeys: 'M4 18 9 6l3 7 3-5 5 10', monitor: 'M4 19V9M10 19V5M16 19v-8M22 19H2', plus: 'M12 5v14M5 12h14', search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
   email: 'M3 6h18v12H3zM3 7l9 6 9-6', sms: 'M4 5h16v11H9l-5 4z', push: 'M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3zM10 19a2 2 0 0 0 4 0', event: 'M13 2 4 14h7l-1 8 9-12h-7z',
-  wait: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2', shuffle: 'M3 7h4l10 10h4M3 17h4l10-10h4M18 4l3 3-3 3M18 14l3 3-3 3', control: 'M5 5h14v14H5zM9 9h6v6H9z',
+  wait: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2', shuffle: 'M3 7h4l10 10h4M3 17h4l10-10h4M18 4l3 3-3 3M18 14l3 3-3 3', parallel: 'M3 12h5M8 12c3 0 3-6 6-6h7M8 12c3 0 3 6 6 6h7M18 3l3 3-3 3M18 15l3 3-3 3', control: 'M5 5h14v14H5zM9 9h6v6H9z',
   exit: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM9 9h6v6H9z', engagement: 'M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4', segment: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 3v9l7 5',
   settings: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4', send: 'M22 2 11 13M22 2 15 22l-4-9-9-4z',
   lr: 'M3 12h16M15 8l4 4-4 4', tb: 'M12 3v16M8 15l4 4 4-4', zoomin: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4M11 8v6M8 11h6', zoomout: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4M8 11h6',
@@ -1698,7 +1746,7 @@ function drawCanvas(wrapId, graph, opts) {
       ${rows ? `<foreignObject x="8" y="${FIELD_TOP}" width="${NW - 16}" height="${rows * FIELD_H}"><div xmlns="http://www.w3.org/1999/xhtml" class="nfields">${fields}</div></foreignObject>` : `<text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 36))}</text>`}
       ${stats ? `<rect class="statbg" x="0" y="${H}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${H + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${H + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
       ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
-      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW - 14},${H - 14})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
+      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW - (opts.editable && s.type !== 'event' ? 32 : 12)},12)"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
   }
   const svg = wrap.querySelector('svg.canvas');
@@ -1728,6 +1776,7 @@ function nodeFieldsHtml(step, opts) {
     case 'segmentSplit': return c.segments.map((sid, i) => selHtml(String.fromCharCode(65 + i), `config.segments.${i}`, sid ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])])).join('') + ro('Rem.', 'Remaining');
     case 'engagementSplit': { const cands = v ? deliveriesBefore(v, step.id) : []; return selHtml('Delivery', 'config.deliveryStepId', c.deliveryStepId ?? '', [['', 'Choose a delivery…'], ...cands.map(d => [d.id, d.name])]) + ro('Paths', 'Opened · Clicked · Remaining'); }
     case 'shuffleSplit': return c.paths.map((p, i) => can('config.paths') ? `<div class="nf"><label title="${esc(p.label)}">${esc(trunc(p.label, 8))}</label><input data-nk="config.paths.${i}.pct" type="number" min="0" max="100" value="${p.pct}" style="width:56px;flex:none"><span class="rotext">%</span></div>` : ro(trunc(p.label, 8), `${p.pct} %`)).join('');
+    case 'parallelSplit': { const ed = can('config.paths'); return c.paths.map((k, i) => { const to = v ? edgeOut(v, step.id, k)?.to : null; return `<div class="nf"><label>${esc(k)}</label><span class="rotext">${to ? `→ ${esc(stepOf(v, to)?.name ?? '?')}` : '→ open'}</span>${ed ? `<button type="button" class="nx" data-pact="par-remove" data-arg="${i}" title="Remove this path" ${c.paths.length <= PAR_MIN ? 'disabled' : ''}>×</button>` : ''}</div>`; }).join('') + (ed && c.paths.length < PAR_MAX ? `<div class="nf"><button type="button" class="nadd" data-pact="par-add">+ Add path</button></div>` : ''); }
     case 'controlGroup': return inHtml('Name', 'config.name', c.name);
     default: return '';
   }
@@ -1752,7 +1801,7 @@ function wireCanvas(wrapId, handlers = {}) {
   const wrap = $(wrapId); if (!wrap || wrap.dataset.wired) return; wrap.dataset.wired = '1';
   const cv = canvasFor(wrapId); let pan = null, drag = null, skipClick = false;
   wrap.addEventListener('pointerdown', e => {
-    if (e.button !== 0 || e.target.closest('select, input, label')) return;
+    if (e.button !== 0 || e.target.closest('select, input, label, button')) return;
     const node = e.target.closest('.node');
     if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
     if (e.target.closest('.node, .eplus, .stub, .collapse, .ghost')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
@@ -1768,6 +1817,7 @@ function wireCanvas(wrapId, handlers = {}) {
   wrap.addEventListener('click', e => {
     if (skipClick) { skipClick = false; return; }
     if (e.target.closest('select, input')) return;
+    const pa = e.target.closest('[data-pact]'); if (pa) { if (!pa.disabled) handlers.onAct?.(pa.closest('.node').dataset.id, pa.dataset.pact, pa.dataset.arg); return; }
     const del = e.target.closest('.ndel'); if (del) { handlers.onDelete?.(del.dataset.del); return; }
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
@@ -1825,6 +1875,7 @@ function renderEditor() {
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
     onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },
+    onAct: locked ? null : (id, act, arg) => { app.selectedStepId = id; handleAct(act, arg); },
   });
   const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
   // the selected card's path (entry → card) is highlighted on the connectors
@@ -1855,15 +1906,14 @@ function wirePalette() {
 }
 /* a structural change puts the canvas back on the automatic layout; free positions are cosmetic until then */
 function relayout(v, j) { for (const st of v.steps) if (st.pos) delete st.pos[j.orientation]; canvasFor('cwrap').fitted = false; }
-function addAfter(fromId, key, type, parallel = false) {
+function addAfter(fromId, key, type) {
   const v = curVersion(), j = curJourney();
-  if (parallel) { const src = stepOf(v, fromId); addParallel(v, src); key = v.edges[v.edges.length - 1].label; }
   let edge = edgeOut(v, fromId, key);
   if (!edge) { edge = E(fromId, null, key); v.edges.push(edge); }
   const step = newStep(type); if (edge.to) insertOnEdge(v, edge, step); else { edge.to = step.id; v.steps.push(step); }
   relayout(v, j); touch(j); app.selectedStepId = step.id; renderEditor();
 }
-function addOnEdge(edgeId, type, parallel) { const i = edgeId.indexOf(':'); addAfter(edgeId.slice(0, i), edgeId.slice(i + 1), type, parallel); }
+function addOnEdge(edgeId, type) { const i = edgeId.indexOf(':'); addAfter(edgeId.slice(0, i), edgeId.slice(i + 1), type); }
 function stepMenu(x, y, onPick, opts = {}) {
   closeStepMenu();
   const m = document.createElement('div'); m.className = 'menu stepmenu'; m.style.position = 'fixed'; m.style.left = `${x + 8}px`; m.style.top = `${y + 8}px`; m.style.zIndex = 70;
@@ -1913,13 +1963,13 @@ function stepPanelHtml(j, v) {
   const s = app.selectedStepId ? stepOf(v, app.selectedStepId) : null;
   if (!s) return `<div class="ph"><h3>Step details</h3></div><div class="pb"><div class="empty">Select a step on the canvas.</div><div class="sec">Journey</div><dl class="kv"><dt>Contact list</dt><dd>${esc(dmName(j.contactList))}</dd><dt>Override unsub.</dt><dd>${j.overrideUnsubscribe ? 'On' : 'Off'}</dd><dt>Test users</dt><dd>${j.testUsers.length || 'None'}</dd><dt>Steps</dt><dd>${v.steps.length}</dd><dt>Description</dt><dd>${esc(j.description) || '<span class="muted">—</span>'}</dd></dl><button class="btn outline sm" style="align-self:flex-start" data-act="settings">${icon('settings')} Journey settings</button></div>`;
   const full = canEdit(v, s, 'any');
-  const body = { event: eventPanel, delivery: deliveryPanel, wait: waitPanel, segmentSplit: segmentPanel, engagementSplit: engagementPanel, shuffleSplit: shufflePanel, controlGroup: controlPanel, exit: () => '<div class="empty" style="padding:12px">Contacts leave the journey here. No settings.</div>' }[s.type](s, v, j, full);
+  const body = { event: eventPanel, delivery: deliveryPanel, wait: waitPanel, segmentSplit: segmentPanel, engagementSplit: engagementPanel, shuffleSplit: shufflePanel, parallelSplit: parallelPanel, controlGroup: controlPanel, exit: () => '<div class="empty" style="padding:12px">Contacts leave the journey here. No settings.</div>' }[s.type](s, v, j, full);
   const outs = outletsOf(s, v);
   return `<div class="ph"><span class="ic" style="width:26px;height:26px;background:${TINT(s.type)};color:${INK(s.type)}">${icon(nodeIcon(s), 14)}</span><div style="flex:1;min-width:0"><div class="kind">${esc(kindLabel(s))}</div><h3 style="font-size:15px">${esc(s.name)}</h3></div>${full && s.type !== 'event' ? `<button class="x" data-act="delete-step" title="Delete step">${icon('trash')}</button>` : ''}</div>
     <div class="pb" id="sp-body">
       ${s.type !== 'delivery' ? `<div class="fld"><label for="sp-name">Step name</label><input id="sp-name" data-bind="name" value="${esc(s.name)}" ${full ? '' : 'disabled'}></div>` : ''}
       ${body}
-      ${full && outs.length ? `<div class="sec">Next step</div>${outs.map((o, i) => { const e = edgeOut(v, s.id, o.key); return `<div class="pathrow">${outs.length > 1 ? `<span class="pl">${esc(o.label || (isParKey(o.key) ? `Parallel ${i + 1}` : 'Main'))}</span>` : ''}<span class="small muted grow">${e?.to ? `→ ${esc(stepOf(v, e.to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span><button class="btn outline sm" data-act="add-next" data-arg="${esc(o.key)}">Add next step ▾</button>${isParKey(o.key) ? `<button class="x" title="Remove this parallel branch" data-act="remove-par" data-arg="${esc(o.key)}">×</button>` : ''}</div>`; }).join('')}${canParallel(s) ? `<button class="btn outline sm" style="align-self:flex-start" data-act="add-par">${icon('plus')} Add parallel branch</button><small class="muted">Contacts take every branch of this step at the same time.</small>` : ''}` : ''}
+      ${full && outs.length ? `<div class="sec">Next step</div>${outs.map((o, i) => { const e = edgeOut(v, s.id, o.key); return `<div class="pathrow">${outs.length > 1 ? `<span class="pl">${esc(o.label || 'Main')}</span>` : ''}<span class="small muted grow">${e?.to ? `→ ${esc(stepOf(v, e.to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span><button class="btn outline sm" data-act="add-next" data-arg="${esc(o.key)}">Add next step ▾</button></div>`; }).join('')}` : ''}
     </div>`;
 }
 const sel = (id, bind, value, options, dis, extra = '') => `<select id="${id}" data-bind="${bind}" ${dis ? 'disabled' : ''} ${extra}>${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
@@ -2015,6 +2065,13 @@ function shufflePanel(s, v, j, full) {
     <div class="col" style="gap:6px">${s.config.paths.map((p, i) => `<div class="pathrow"><input class="inp" data-bind="config.paths.${i}.label" data-rename="${i}" value="${esc(p.label)}" ${full ? '' : 'disabled'}><input class="inp" type="number" min="0" max="100" style="width:70px;flex:none" data-bind="config.paths.${i}.pct" data-type="number" value="${p.pct}" ${full ? '' : 'disabled'}><span class="muted small">%</span>${full ? `<button type="button" class="x" title="Remove path" data-act="sh-remove" data-arg="${i}" ${s.config.paths.length <= 2 ? 'disabled' : ''}>×</button>` : ''}</div>`).join('')}</div>
     <div class="hrow" style="justify-content:space-between"><span class="small ${total === 100 ? 'muted' : ''}" ${total === 100 ? '' : 'style="color:var(--bad);font-weight:500"'}>Total ${total} %${total !== 100 ? ' — must be 100 %' : ''}</span>${full ? `<span class="hrow" style="gap:6px"><button type="button" class="btn outline sm" data-act="sh-even">Split evenly</button><button type="button" class="btn outline sm" data-act="sh-add">${icon('plus')} Path</button></span>` : ''}</div>`;
 }
+/* [5] Parallel split: 2–5 paths, contacts go down all of them at once */
+function parallelPanel(s, v, j, full) {
+  const n = s.config.paths.length;
+  return `<div class="info">${icon('info')} Contacts go down every path at the same time. They count as exited only when every path has reached an Exit.</div>
+    <div class="col" style="gap:6px">${s.config.paths.map((k, i) => { const to = edgeOut(v, s.id, k)?.to; return `<div class="pathrow"><span class="pl">${esc(k)}</span><span class="small muted grow">${to ? `→ ${esc(stepOf(v, to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span>${full ? `<button type="button" class="x" title="Remove path" data-act="par-remove" data-arg="${i}" ${n <= PAR_MIN ? 'disabled' : ''}>×</button>` : ''}</div>`; }).join('')}</div>
+    ${full ? `<div class="hrow" style="justify-content:space-between"><span class="small muted">${n} of ${PAR_MAX} paths</span><button type="button" class="btn outline sm" data-act="par-add" ${n >= PAR_MAX ? 'disabled' : ''}>${icon('plus')} Path</button></div>` : ''}`;
+}
 /* [5] Control group */
 const controlPanel = (s, v, j, full) => `<div class="fld"><label for="sp-cg">Group name</label><input id="sp-cg" data-bind="config.name" value="${esc(s.config.name)}" ${full ? '' : 'disabled'}></div><div class="info">${icon('info')} Contacts stop here and are kept for comparison.</div>`;
 
@@ -2074,13 +2131,13 @@ function handleAct(act, arg, el, e) {
     case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
     case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); } return;
     case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, type => addAfter(s.id, arg, type)); return;
-    case 'add-par': addParallel(v, s); relayout(v, j); touch(j); renderEditor(); toast('Parallel branch added', 'Add a step or an Exit on the new path with its “+ Add step” card.'); return;
-    case 'remove-par': { const edge = edgeOut(v, s.id, arg); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); relayout(v, j); touch(j); renderEditor(); return; }
     case 'copy-ph': navigator.clipboard?.writeText(arg).catch(() => {}); toast('Copied', `${arg} — paste it into content outside this prototype.`); return;
     case 'set-channel': if (s && canEdit(v, s, 'channel') && s.config.channel !== arg) { s.config.channel = arg; s.config.contentId = defaultContentFor(arg)?.id ?? null; touch(j); renderEditor(); } return;
     case 'seg-add': s.config.segments.push(null); touch(j); renderEditor(); return;
     case 'seg-remove': { const i = +arg; s.config.segments.splice(i, 1); syncEdges(v, s); touch(j); renderEditor(); return; }
     case 'seg-move': { const [i, d] = arg.split('|').map(Number), k = i + d; if (k < 0 || k >= s.config.segments.length) return; [s.config.segments[i], s.config.segments[k]] = [s.config.segments[k], s.config.segments[i]]; touch(j); renderEditor(); return; }
+    case 'par-add': if (s && parAddPath(v, s)) { relayout(v, j); touch(j); renderEditor(); } return;
+    case 'par-remove': if (s && parRemovePath(v, s, +arg)) { relayout(v, j); touch(j); renderEditor(); } return;
     case 'sh-add': s.config.paths.push({ label: `Path ${String.fromCharCode(65 + s.config.paths.length)}`, pct: 0 }); touch(j); renderEditor(); return;
     case 'sh-remove': s.config.paths.splice(+arg, 1); syncEdges(v, s); touch(j); renderEditor(); return;
     case 'sh-even': { const n = s.config.paths.length, base = Math.floor(100 / n); s.config.paths.forEach((p, i) => p.pct = base + (i < 100 - base * n ? 1 : 0)); touch(j); renderEditor(); return; }
@@ -2272,7 +2329,7 @@ function overviewHtml(j, vs, all) {
 }
 function contactsHtml(j, v, states) {
   const m = app.monitor, q = m.q.trim().toLowerCase(), byId = new Map(CONTACTS.map(c => [c.id, c]));
-  const rows = states.filter(s => { const c = byId.get(s.contactId); if (!c) return false; if (m.step && s.stepId !== m.step) return false; if (m.status && s.status !== m.status) return false; if (q && !(c.id.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.phone ?? '').replace(/\s/g, '').includes(q.replace(/\s/g, '')))) return false; return true; }).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  const rows = states.filter(s => { const c = byId.get(s.contactId); if (!c) return false; if (m.step && s.stepId !== m.step && !s.legs?.some(l => l.stepId === m.step)) return false; if (m.status && s.status !== m.status) return false; if (q && !(c.id.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.phone ?? '').replace(/\s/g, '').includes(q.replace(/\s/g, '')))) return false; return true; }).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
   const stepName = id => stepOf(v, id)?.name ?? '?';
   return `<div class="col" style="gap:10px;flex:1;min-height:0">
     <div class="hrow wrap" style="gap:10px">
@@ -2282,7 +2339,7 @@ function contactsHtml(j, v, states) {
       ${m.step || m.status || m.q ? `<button class="btn link sm" data-act="m-clear">Clear</button>` : ''}<span class="muted small right">${rows.length} contact${rows.length === 1 ? '' : 's'}</span>
     </div>
     <div style="overflow:auto;flex:1;min-height:0"><table class="tbl" id="mc-table"><thead><tr><th>Contact</th><th>Event</th><th>Received at</th><th>Current step</th><th>Status</th><th>Last delivery result</th></tr></thead><tbody>
-      ${rows.length ? rows.slice(0, 200).map(s => { const c = byId.get(s.contactId); return `<tr class="row" data-act="m-contact" data-arg="${s.id}"><td><div class="t1">${esc(c.firstName)} ${esc(c.lastName)}</div><div class="t2">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ''} · ${c.language.toUpperCase()}</div></td><td>${esc(eventById(j.eventId)?.name ?? '')}</td><td class="nw">${fmtDate(s.receivedAt, true)}</td><td>${esc(stepName(s.stepId))}</td><td>${pill(s.status + (s.status === 'Waiting' && s.waitKind ? ` · ${s.waitKind}` : ''), CONTACT_STATUS_CLS[s.status])}</td><td>${esc(s.lastDelivery)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">No contacts match.</td></tr>'}
+      ${rows.length ? rows.slice(0, 200).map(s => { const c = byId.get(s.contactId); return `<tr class="row" data-act="m-contact" data-arg="${s.id}"><td><div class="t1">${esc(c.firstName)} ${esc(c.lastName)}</div><div class="t2">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ''} · ${c.language.toUpperCase()}</div></td><td>${esc(eventById(j.eventId)?.name ?? '')}</td><td class="nw">${fmtDate(s.receivedAt, true)}</td><td>${esc(stepName(s.stepId))}${s.legs?.length ? `<div class="t2">${s.legs.length} parallel paths</div>` : ''}</td><td>${pill(s.status + (s.status === 'Waiting' && s.waitKind ? ` · ${s.waitKind}` : ''), CONTACT_STATUS_CLS[s.status])}</td><td>${esc(s.lastDelivery)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">No contacts match.</td></tr>'}
     </tbody></table>${rows.length > 200 ? `<div class="empty">Showing the first 200 of ${rows.length}. Narrow the search to see others.</div>` : ''}</div></div>`;
 }
 function wireContacts(j, v, states) {
@@ -2296,14 +2353,19 @@ function contactPanel(stateId) {
   const st = CONTACT_STATES.find(s => s.id === stateId); if (!st) return;
   const j = JOURNEYS.find(x => x.id === st.journeyId), v = VERSIONS.find(x => x.id === st.versionId), c = CONTACTS.find(x => x.id === st.contactId);
   const stepName = id => stepOf(v, id)?.name ?? '?';
-  const visited = st.history.filter(l => l.event === 'entered').map(l => l.stepId), hl = new Set(visited), hlE = new Set();
-  for (let i = 0; i < visited.length - 1; i++) { const e = v.edges.find(x => x.from === visited[i] && x.to === visited[i + 1]); if (e) hlE.add(`${e.from}:${e.label}`); }
+  const hl = new Set(st.history.filter(l => l.event === 'entered').map(l => l.stepId)), hlE = new Set(v.edges.filter(e => hl.has(e.from) && hl.has(e.to)).map(e => `${e.from}:${e.label}`));
+  const tlRow = (l, compact) => compact ? `<div class="tl c k-${l.event}"><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))} · ${fmtDate(l.at, true)}</small></span></div>` : `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`;
+  const nowRow = (status, waitKind, stepId, compact) => status === 'Waiting' || status === 'In step' ? (compact ? `<div class="tl c k-now"><span class="dot"></span><span class="tb">${status === 'Waiting' ? `Waiting · ${esc(waitKind ?? '')}` : 'In step'}<small>${esc(stepName(stepId))} · now</small></span></div>` : `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${status === 'Waiting' ? `Waiting · ${esc(waitKind ?? '')}` : 'In step'}<small>${esc(stepName(stepId))}</small></span></div>`) : '';
+  // parallel paths side by side: the common part first, then one column per path (leg)
+  const common = st.history.filter(l => !l.leg), legs = st.legs ?? [];
+  const timeline = `<div class="timeline" style="margin-top:8px">${common.map(l => tlRow(l)).join('')}${legs.length ? '' : nowRow(st.status, st.waitKind, st.stepId)}</div>` +
+    (legs.length ? `<div class="tlcols" style="grid-template-columns:repeat(${Math.min(legs.length, 3)},minmax(0,1fr))">${legs.map(l => `<div class="tlcol"><div class="tlhead"><b>${esc(l.label)}</b>${pill(l.status + (l.status === 'Waiting' && l.waitKind ? ` · ${l.waitKind}` : ''), CONTACT_STATUS_CLS[l.status])}</div><div class="timeline">${st.history.filter(x => x.leg === l.pathId).map(x => tlRow(x, true)).join('')}${nowRow(l.status, l.waitKind, l.stepId, true)}</div></div>`).join('')}</div>` : '');
   $('drawer-host').innerHTML = `<div class="drawer-bg" data-act="m-close-panel"></div><div class="drawer" role="dialog" aria-modal="true">
     <div class="dh"><div><h3>Where is ${esc(c.firstName)} ${esc(c.lastName)} now?</h3><div class="small muted">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ' · no phone'}${c.pushToken ? '' : ' · no push token'} · ${c.language.toUpperCase()} · ${esc(c.plan)}</div></div>
       <div class="right hrow" style="gap:8px"><span class="small muted">Now at</span><b>${esc(stepName(st.stepId))}</b>${pill(st.status + (st.status === 'Waiting' && st.waitKind ? ` · ${st.waitKind}` : ''), CONTACT_STATUS_CLS[st.status])}<button class="x" data-act="m-close-panel" aria-label="Close">×</button></div></div>
     <div class="db"><div class="dl">
       <div><div class="sec" style="padding-top:0">Event · ${esc(eventById(j.eventId)?.name ?? '')}</div><dl class="kv" style="margin-top:6px"><dt>received at</dt><dd>${fmtDate(st.receivedAt, true)}</dd><dt>version</dt><dd>v${v.no}</dd>${Object.entries(st.payload).map(([k, x]) => `<dt class="mono">${k}</dt><dd style="word-break:break-all">${esc(x)}</dd>`).join('')}</dl></div>
-      <div><div class="sec">Timeline</div><div class="timeline" style="margin-top:8px">${st.history.map(l => `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`).join('')}${st.status === 'Waiting' || st.status === 'In step' ? `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${st.status === 'Waiting' ? `Waiting · ${st.waitKind ?? 'Duration'}` : 'In step — being processed'}<small>${esc(stepName(st.stepId))}</small></span></div>` : ''}</div></div>
+      <div><div class="sec">Timeline</div>${timeline}</div>
     </div><div class="dr"><div class="small muted" style="padding:0 4px 8px">The contact’s path is highlighted on v${v.no}.</div><div class="canvas-wrap" id="pwrap"><svg class="canvas" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div></div>`;
   CANVASES.delete('pwrap'); wireCanvasReset('pwrap');
   drawCanvas('pwrap', buildGraph(v), { orientation: j.orientation, version: v, journey: j, highlight: hl, highlightEdges: hlE });
