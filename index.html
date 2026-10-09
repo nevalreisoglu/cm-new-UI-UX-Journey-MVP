@@ -519,9 +519,10 @@ body{font-size:14px;line-height:1.43}
 .cright{display:flex;flex-direction:column;min-width:0;min-height:0}
 .palette .pg{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
 .palette button:not(.tog){cursor:grab}
-.ctool .ic{width:auto;padding:0 8px;gap:5px;font-size:12px;border-radius:4px}
+.ctool .ic{display:inline-flex;align-items:center;width:auto;height:28px;padding:0 8px;gap:5px;font-size:12px;border-radius:4px;color:var(--ink-2)}
+.ctool .ic.on{border:1.5px solid var(--green);color:var(--green)}
 .ctool .ic:hover{background:var(--surface-2);color:var(--brand-navy)}
-.ctool .dir button{width:auto;padding:0 10px;gap:5px;font-size:12px}
+.ctool .dir button{display:inline-flex;align-items:center;width:auto;height:28px;padding:0 10px;gap:5px;font-size:12px}
 .ctool .dir button.off{background:var(--grey-2);color:var(--ink-2)}
 .canvas-wrap{min-height:320px}
 .node{cursor:pointer}
@@ -1289,7 +1290,7 @@ function layoutGraph(graph, orientation, extraH = 0) {
   const hasParent = new Set(graph.edges.map(e => e.to));
   const roots = graph.nodes.filter(n => !hasParent.has(n.id)).map(n => n.id);
   const depth = new Map(), cross = new Map(); let slot = 0;
-  const GAP_RANK = orientation === 'LR' ? 64 : 48, GAP_CROSS = orientation === 'LR' ? 22 : 36;
+  const GAP_RANK = orientation === 'LR' ? 64 : 48, GAP_CROSS = orientation === 'LR' ? 30 : 40;
   const rankSize = orientation === 'LR' ? NW : NH + extraH, crossSize = orientation === 'LR' ? NH + extraH : NW;
   const place = (id, d) => {
     depth.set(id, Math.max(d, depth.get(id) ?? 0));
@@ -1533,10 +1534,347 @@ function newJourneyModal() {
   setTimeout(() => $('nj-name').focus(), 30);
 }
 
-/* ---- step (a) placeholders; replaced in steps (c)–(e) ---- */
-function renderEditor() { crumb([{ label: 'Journeys', act: 'go-journeys' }, { label: curJourney()?.name ?? '' }]); $('view-editor').innerHTML = `<div class="card"><div class="card-h"><h2>${esc(curJourney()?.name ?? '')}</h2></div></div>`; }
+/* ---- Screen 2 — Journey editor ----------------------------------------------------- */
+const TINT = t => `var(--t-${STEP_META[t].tint})`, INK = t => `var(--t-${STEP_META[t].tint}-i)`;
+const kindLabel = step => step.type === 'delivery' ? `Delivery · ${CHANNEL_LABEL[step.config.channel] ?? ''}` : STEP_META[step.type].k;
+const nodeIcon = step => step.type === 'delivery' ? (step.config.channel || 'send') : STEP_META[step.type].icon;
+const trunc = (s, n) => (s = String(s ?? ''), s.length > n ? s.slice(0, n - 1) + '…' : s);
+
+/* a canvas instance: one per wrap element (editor, monitor flow, View changes, contact panel) */
+const CANVASES = new Map();
+function canvasFor(wrapId) { if (!CANVASES.has(wrapId)) CANVASES.set(wrapId, { view: { x: 0, y: 0, k: 1 }, fitted: false }); return CANVASES.get(wrapId); }
+/* draw the graph into <svg class="canvas"> inside the wrap; opts: orientation, editable, selected, invalid(Set), stats(fn step→[[label,value,cls]…]), edgeStat(fn edge→string), highlight(Set of step ids), highlightEdges(Set of "from:key"), statusCls */
+function drawCanvas(wrapId, graph, opts) {
+  const wrap = $(wrapId); if (!wrap) return; const cv = canvasFor(wrapId); cv.graph = graph; cv.opts = opts;
+  const extraH = opts.stats ? 20 : 0, cardH = NH + extraH;
+  const lay = layoutGraph(graph, opts.orientation, extraH); cv.layout = lay;
+  const byFrom = {}; for (const e of graph.edges) (byFrom[e.from] ??= []).push(e);
+  let edges = '', overlays = '';
+  for (const e of graph.edges) {
+    const a = lay.pos[e.from], b = lay.pos[e.to]; if (!a || !b) continue;
+    const sib = byFrom[e.from], idx = sib.indexOf(e);
+    const g = edgePath(a, b, opts.orientation, idx, sib.length, NH);
+    const hl = opts.highlightEdges?.has(e.id);
+    const cls = ['edge', e.dangling ? 'dangling' : '', hl ? 'hl' : '', e.status ? `st-${e.status}` : ''].join(' ');
+    edges += `<g class="${cls}"><path d="${g.d}"/></g>`;
+    const stat = opts.edgeStat?.(e); const label = e.label + (stat ? `  ${stat}` : '');
+    if (label.trim()) { const lp = g.at(sib.length > 1 ? (opts.editable ? .3 : .3) : .5), w = Math.max(30, label.length * 5.6 + 14); overlays += `<g class="edge ${e.status ? `st-${e.status}` : ''}"><rect x="${lp.x - w / 2}" y="${lp.y - 8}" width="${w}" height="16" rx="8"/><text x="${lp.x}" y="${lp.y + 3.5}" text-anchor="middle">${esc(e.label)}${stat ? `<tspan class="es"> ${esc(stat)}</tspan>` : ''}</text></g>`; }
+    if (opts.editable && !e.dangling) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
+    else if (opts.editable && e.dangling) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
+  }
+  let nodes = '';
+  for (const n of graph.nodes) {
+    const p = lay.pos[n.id]; if (!p) continue;
+    if (n.kind === 'end') { nodes += `<g transform="translate(${p.x + END_R},${p.y + END_R})"><title>This path does not end with Exit</title><circle class="endmark" r="${END_R - 2}"/></g>`; continue; }
+    if (n.kind === 'stub') { nodes += `<g class="stub" data-expand="${n.parent}" transform="translate(${p.x},${p.y})"><title>Expand</title><rect width="${p.w}" height="${p.h}" rx="6"/><text x="${p.w / 2}" y="${p.h / 2 + 4}" text-anchor="middle">${n.hidden} step${n.hidden === 1 ? '' : 's'} hidden</text></g>`; continue; }
+    const s = n.step, sel = opts.selected === s.id, inv = opts.invalid?.has(s.id), hl = opts.highlight?.has(s.id);
+    const cls = ['node', sel ? 'sel' : '', inv ? 'invalid' : '', hl ? 'hl' : '', n.status ? `st-${n.status}` : ''].join(' ');
+    const stats = opts.stats?.(s);
+    nodes += `<g class="${cls}" data-id="${s.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(s.name)}">
+      <rect class="body" width="${NW}" height="${cardH}"/>
+      <rect class="head" width="${NW}" height="24" fill="${TINT(s.type)}"/><rect width="${NW}" height="12" y="12" fill="${TINT(s.type)}"/>
+      <g transform="translate(9,5)" fill="none" stroke="${INK(s.type)}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path transform="scale(.58)" d="${ICONS[nodeIcon(s)]}"/></g>
+      <text class="k" x="28" y="16" fill="${INK(s.type)}">${esc(kindLabel(s))}</text>
+      ${n.status ? `<text class="dst" x="${NW - 8}" y="16" text-anchor="end" fill="${n.status === 'added' ? 'var(--ok)' : n.status === 'removed' ? 'var(--bad)' : 'var(--warn)'}">${n.status}</text>` : ''}
+      <text class="n" x="10" y="43">${esc(trunc(s.name, 30))}</text>
+      <text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 34))}</text>
+      ${stats ? `<rect class="statbg" x="0" y="${NH}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${NH + 14}">${stats.map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
+      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${NH / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
+    </g>`;
+  }
+  const svg = wrap.querySelector('svg.canvas');
+  svg.innerHTML = `<g class="vp" transform="translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})">${edges}${overlays}${nodes}</g>`;
+  if (!cv.fitted) fitCanvasOf(wrapId);
+}
+function fitCanvasOf(wrapId) {
+  const wrap = $(wrapId), cv = CANVASES.get(wrapId); if (!wrap || !cv?.layout) return;
+  const cw = wrap.clientWidth, ch = wrap.clientHeight; if (!cw || !ch) return;
+  const k = Math.min(1, (cw - 24) / cv.layout.width, (ch - 24) / cv.layout.height);
+  cv.view = { k, x: (cw - cv.layout.width * k) / 2, y: Math.max(12, (ch - cv.layout.height * k) / 2) }; cv.fitted = true;
+  wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`);
+  const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
+}
+function zoomCanvas(wrapId, f) {
+  const wrap = $(wrapId), cv = CANVASES.get(wrapId); if (!wrap || !cv) return;
+  const mx = wrap.clientWidth / 2, my = wrap.clientHeight / 2, k = Math.min(2.5, Math.max(.2, cv.view.k * f));
+  cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k };
+  wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`);
+  const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
+}
+/* pan by drag on the background, wheel zoom, click selects — wired once per wrap */
+function wireCanvas(wrapId, handlers = {}) {
+  const wrap = $(wrapId); if (!wrap || wrap.dataset.wired) return; wrap.dataset.wired = '1';
+  const cv = canvasFor(wrapId); let pan = null;
+  wrap.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('.node, .eplus, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+  wrap.addEventListener('pointermove', e => { if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
+  wrap.addEventListener('pointerup', e => { const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
+  wrap.addEventListener('wheel', e => { e.preventDefault(); const r = wrap.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.min(2.5, Math.max(.2, cv.view.k * (e.deltaY < 0 ? 1.1 : .9))); cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k }; wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`; }, { passive: false });
+  wrap.addEventListener('click', e => {
+    const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
+    const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
+    const plus = e.target.closest('.eplus'); if (plus) { handlers.onPlus?.(plus.dataset.edge, e); return; }
+    const node = e.target.closest('.node'); if (node) { handlers.onSelect?.(node.dataset.id); return; }
+  });
+  wrap.addEventListener('keydown', e => { const node = e.target.closest?.('.node'); if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handlers.onSelect?.(node.dataset.id); } });
+  // drop from the palette onto a connection's "+"
+  wrap.addEventListener('dragover', e => { const plus = e.target.closest('.eplus'); if (plus && e.dataTransfer.types.includes('application/x-journey-step')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; wrap.querySelectorAll('.eplus.hover').forEach(x => x.classList.remove('hover')); plus.classList.add('hover'); } });
+  wrap.addEventListener('dragleave', e => { e.target.closest?.('.eplus')?.classList.remove('hover'); });
+  wrap.addEventListener('drop', e => { const plus = e.target.closest('.eplus'); if (!plus) return; e.preventDefault(); const type = e.dataTransfer.getData('application/x-journey-step'); if (type) handlers.onDrop?.(plus.dataset.edge, type); });
+}
+
+function renderEditor() {
+  const j = curJourney(); let v = curVersion();
+  if (!j) { showView('journeys'); return; }
+  if (!v || v.journeyId !== j.id) { v = primaryVersion(j); app.versionId = v?.id ?? null; }
+  if (!v) { $('view-editor').innerHTML = '<div class="card"><div class="empty">This journey has no version.</div></div>'; return; }
+  crumb(Object.assign([{ label: 'Journeys', act: 'go-journeys' }, { label: j.name }], { right: `<span class="right">${pill(j.contactList)}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}<button class="btn sm outline" data-act="go-monitor" data-arg="${j.id}">${icon('monitor')} Monitor</button></span>` }));
+  const locked = isLocked(v), issues = validateVersion(v), invalid = new Set(issues.map(i => i.stepId).filter(Boolean));
+  const vs = versionsOf(j.id);
+  $('view-editor').innerHTML = `
+    <div class="split" id="jsplit" style="grid-template-columns:1fr 360px">
+      <div class="card left editor">
+        ${versionBarHtml(j, v, vs, issues)}
+        ${lockBarHtml(v)}
+        <div class="jb ${locked ? 'locked' : ''}" id="jb">
+          ${locked ? '' : paletteHtml()}
+          <div class="cright">
+            <div class="ctool">
+              <div class="grow"></div>
+              <button class="ic" id="btn-zout" data-act="zoom-out" title="Zoom out">${icon('zoomout')}<span>Zoom out</span></button>
+              <button class="ic" id="btn-zin" data-act="zoom-in" title="Zoom in">${icon('zoomin')}<span>Zoom in</span></button>
+              <button class="ic on" id="btn-fit" data-act="fit" title="Fit to view">${icon('fit')}<span>Fit</span></button>
+              <span class="muted small zoomlbl num" style="padding:0 6px">100 %</span>
+              ${locked ? '' : `<button class="ic" id="btn-validate" data-act="validate" title="Validate">${icon('validate')}<span>Validate</span></button><button class="ic" id="btn-del" data-act="delete-step" title="Delete step" ${!app.selectedStepId || stepOf(v, app.selectedStepId)?.type === 'event' ? 'disabled' : ''}>${icon('trash')}<span>Delete step</span></button>`}
+              <div class="dir"><button class="${j.orientation === 'LR' ? '' : 'off'}" data-act="orient" data-arg="LR" title="Left to right">${icon('lr')}Horizontal</button><button class="${j.orientation === 'TB' ? '' : 'off'}" data-act="orient" data-arg="TB" title="Top to bottom">${icon('tb')}Vertical</button></div>
+            </div>
+            <div class="canvas-wrap" id="cwrap"><svg class="canvas" id="canvas" xmlns="http://www.w3.org/2000/svg"></svg></div>
+          </div>
+        </div>
+        ${validationBarHtml(issues, locked)}
+      </div>
+      <aside class="card panel jinfo" id="jpanel">${stepPanelHtml(j, v)}</aside>
+    </div>`;
+  wireCanvas('cwrap', {
+    onSelect: id => { app.selectedStepId = id; renderEditor(); },
+    onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
+    onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type)),
+    onDrop: (edgeId, type) => addOnEdge(edgeId, type),
+    onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
+  });
+  const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
+  drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
+  wirePalette(); wireStepPanel(j, v);
+}
+const fitCanvas = () => fitCanvasOf('cwrap');
+
+function paletteHtml() {
+  const groups = [...new Set(PALETTE.map(p => p.grp))];
+  return `<div class="palette" id="palette"><div class="pt"><span>Steps</span></div><div class="ps">Drag onto a connection, use “+” on a connection, or click to add after the selected step.</div>
+    ${groups.map(g => `<div class="pg">${g}</div>${PALETTE.filter(p => p.grp === g).map(p => `<button type="button" data-type="${p.type}" draggable="${p.type !== 'event'}" ${p.type === 'event' ? 'disabled title="Every journey has exactly one Event entry"' : `title="Drag “${p.label}” onto a connection"`} style="--c:${INK(p.type)};--bg2:${TINT(p.type)}"><i>${icon(STEP_META[p.type].icon, 11)}</i><span>${p.label}</span></button>`).join('')}`).join('')}
+  </div>`;
+}
+function wirePalette() {
+  const pal = $('palette'); if (!pal) return;
+  pal.querySelectorAll('button[data-type]').forEach(b => {
+    b.addEventListener('dragstart', e => { e.dataTransfer.setData('application/x-journey-step', b.dataset.type); e.dataTransfer.effectAllowed = 'copy'; b.classList.add('dragging'); $('cwrap').classList.add('dropping'); });
+    b.addEventListener('dragend', () => { b.classList.remove('dragging'); $('cwrap').classList.remove('dropping'); $('cwrap').querySelectorAll('.eplus.hover').forEach(x => x.classList.remove('hover')); });
+    b.addEventListener('click', () => {
+      const v = curVersion(), sel = app.selectedStepId ? stepOf(v, app.selectedStepId) : null;
+      if (sel && outletsOf(sel).length === 1) { addAfter(sel.id, outletsOf(sel)[0].key, b.dataset.type); return; }
+      toast('Where should it go?', 'Drag the step onto a connection, click “+” on a connection, or select a step and use “Add next step”.');
+    });
+  });
+}
+function addAfter(fromId, key, type) {
+  const v = curVersion(), j = curJourney(); let edge = edgeOut(v, fromId, key);
+  if (!edge) { edge = E(fromId, null, key); v.edges.push(edge); }
+  const step = newStep(type); if (edge.to) insertOnEdge(v, edge, step); else { edge.to = step.id; v.steps.push(step); }
+  touch(j); app.selectedStepId = step.id; renderEditor();
+}
+function addOnEdge(edgeId, type) { const i = edgeId.indexOf(':'); addAfter(edgeId.slice(0, i), edgeId.slice(i + 1), type); }
+function stepMenu(x, y, onPick) {
+  closeStepMenu();
+  const m = document.createElement('div'); m.className = 'menu stepmenu'; m.style.position = 'fixed'; m.style.left = `${x + 8}px`; m.style.top = `${y + 8}px`; m.style.zIndex = 70;
+  const groups = ['Message', 'Wait', 'Split', 'Action'];
+  m.innerHTML = groups.map(g => `<div class="grp">${g}</div>${PALETTE.filter(p => p.grp === g).map(p => `<button data-type="${p.type}"><span class="ic" style="background:${TINT(p.type)};color:${INK(p.type)}">${icon(STEP_META[p.type].icon, 12)}</span>${p.label}</button>`).join('')}`).join('');
+  m.querySelectorAll('button').forEach(b => b.onclick = ev => { ev.stopPropagation(); closeStepMenu(); onPick(b.dataset.type); });
+  document.body.appendChild(m);
+  const r = m.getBoundingClientRect(); if (r.bottom > innerHeight) m.style.top = `${innerHeight - r.height - 8}px`; if (r.right > innerWidth) m.style.left = `${innerWidth - r.width - 8}px`;
+  setTimeout(() => document.addEventListener('click', closeStepMenu, { once: true }), 0);
+}
+function closeStepMenu() { document.querySelectorAll('.menu.stepmenu').forEach(m => m.remove()); }
+
+function lockBarHtml(v) {
+  if (v.status === 'active' || v.status === 'closing') return `<div class="lockbar">${icon('lock')} Structure locked — only delivery content can be changed. Content changes need no approval and are logged in the version history.</div>`;
+  if (v.status === 'pending') return `<div class="lockbar">${icon('lock')} Pending approval — read-only until the approver decides${app.role === 'marketer' ? ', or withdraw it to edit' : ''}.</div>`;
+  if (v.status === 'closed') return `<div class="lockbar">${icon('lock')} Closed version — read-only. Copy it to a new version to continue.</div>`;
+  if (v.rejectComment) return `<div class="rejectbar">${icon('warn')} Rejected by the approver: “${esc(v.rejectComment)}”</div>`;
+  return '';
+}
+function validationBarHtml(issues, locked) {
+  if (locked) return '';
+  if (!issues.length) return `<div class="valbar ok" id="valbar">${icon('check')} Ready to submit — no validation issues.</div>`;
+  return `<div class="valbar bad" id="valbar"><span style="color:var(--bad);font-weight:500;display:inline-flex;gap:6px;align-items:center">${icon('warn')} ${issues.length} issue${issues.length === 1 ? '' : 's'} block submission</span>${issues.map(i => `<button class="vi" data-act="select-step" data-arg="${i.stepId ?? ''}" title="Select the step">${esc(i.message)}</button>`).join('')}</div>`;
+}
+
+/* [1] version bar: buttons derived from VERSION_TRANSITIONS */
+function versionBarHtml(j, v, vs, issues) {
+  const acts = actionsFor(v, app.role);
+  const meta = v.status === 'draft' ? `Created by ${userName(v.createdBy)} · ${fmtDate(v.createdAt, true)}` : v.status === 'pending' ? `Submitted by ${userName(v.submittedBy)} · ${fmtDate(v.submittedAt, true)}` : `Activated by ${userName(v.approvedBy)} · ${fmtDate(v.approvedAt, true)}${v.closedAt ? ` · closed ${fmtDate(v.closedAt)}` : ''}`;
+  return `<div class="vbar" id="vbar">
+    <select id="vsel" aria-label="Version">${vs.map(x => `<option value="${x.id}" ${x.id === v.id ? 'selected' : ''}>v${x.no} · ${STATUS_LABEL[x.status]}${x.note ? ` · ${esc(x.note)}` : ''}</option>`).join('')}</select>
+    ${vpill(v.status)}
+    <div class="vmeta">${v.note ? `<b>${esc(v.note)}</b>` : '<span class="muted">No version note</span>'}<span>${meta}</span></div>
+    <button class="btn link sm" data-act="history" title="Version history">${icon('clock')} History</button>
+    <div class="acts">
+      ${acts.map(t => `<button class="btn sm ${t.cls}" data-act="v-${t.action}" ${t.action === 'submit' && issues.length ? 'disabled title="Fix the validation issues first"' : ''}>${t.action === 'approve' ? icon('check') : t.action === 'viewChanges' ? icon('diff') : t.action === 'copy' ? icon('copy') : t.action === 'delete' ? icon('trash') : ''} ${t.label}</button>`).join('')}
+      ${v.status === 'draft' && app.role === 'approver' ? '<span class="muted small">Draft — the marketer submits it for approval.</span>' : ''}
+      <span class="sp"></span>
+      <button class="btn sm outline" data-act="settings">${icon('settings')} Journey settings</button>
+      <button class="btn sm outline" data-act="test-send">${icon('send')} Test send</button>
+    </div>
+  </div>`;
+}
+
+/* ---- step panels (right, aside.card.panel.jinfo) ---- */
+function stepPanelHtml(j, v) {
+  const s = app.selectedStepId ? stepOf(v, app.selectedStepId) : null;
+  if (!s) return `<div class="ph"><h3>Step details</h3></div><div class="pb"><div class="empty">Select a step on the canvas.</div><div class="sec">Journey</div><dl class="kv"><dt>Contact list</dt><dd>${j.contactList}</dd><dt>Override unsub.</dt><dd>${j.overrideUnsubscribe ? 'On' : 'Off'}</dd><dt>Test users</dt><dd>${j.testUsers.length || 'None'}</dd><dt>Steps</dt><dd>${v.steps.length}</dd><dt>Description</dt><dd>${esc(j.description) || '<span class="muted">—</span>'}</dd></dl><button class="btn outline sm" style="align-self:flex-start" data-act="settings">${icon('settings')} Journey settings</button></div>`;
+  const full = canEdit(v, s, 'any');
+  const body = { event: eventPanel, delivery: deliveryPanel, wait: waitPanel, segmentSplit: segmentPanel, engagementSplit: engagementPanel, shuffleSplit: shufflePanel, controlGroup: controlPanel, exit: () => '<div class="empty" style="padding:12px">Contacts leave the journey here. No settings.</div>' }[s.type](s, v, j, full);
+  const outs = outletsOf(s);
+  return `<div class="ph"><span class="ic" style="width:26px;height:26px;background:${TINT(s.type)};color:${INK(s.type)}">${icon(nodeIcon(s), 14)}</span><div style="flex:1;min-width:0"><div class="kind">${esc(kindLabel(s))}</div><h3 style="font-size:15px">${esc(s.name)}</h3></div>${full && s.type !== 'event' ? `<button class="x" data-act="delete-step" title="Delete step">${icon('trash')}</button>` : ''}</div>
+    <div class="pb" id="sp-body">
+      ${s.type !== 'delivery' ? `<div class="fld"><label for="sp-name">Step name</label><input id="sp-name" data-bind="name" value="${esc(s.name)}" ${full ? '' : 'disabled'}></div>` : ''}
+      ${body}
+      ${full && outs.length ? `<div class="sec">Next step</div>${outs.map(o => { const e = edgeOut(v, s.id, o.key); return `<div class="pathrow">${outs.length > 1 ? `<span class="pl">${esc(o.label)}</span>` : ''}<span class="small muted grow">${e ? `→ ${esc(stepOf(v, e.to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span><button class="btn outline sm" data-act="add-next" data-arg="${esc(o.key)}">Add next step ▾</button></div>`; }).join('')}` : ''}
+    </div>`;
+}
+const sel = (id, bind, value, options, dis, extra = '') => `<select id="${id}" data-bind="${bind}" ${dis ? 'disabled' : ''} ${extra}>${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+/* [3] Event entry */
+function eventPanel(s, v, j, full) {
+  const c = s.config, ev = eventById(c.eventId);
+  const sample = Object.fromEntries((ev?.payload ?? []).map(p => [p.name, p.type === 'number' ? Number(p.sample) : p.sample]));
+  const single = JSON.stringify({ event: c.eventId, contact: { id: 'CUS-****4821', email: 'contact@example.com', language: 'fr' }, payload: sample }, null, 2);
+  const batch = JSON.stringify({ event: c.eventId, items: [{ contact: { id: 'CUS-****4821' }, payload: sample }, { contact: { id: 'CUS-****1193', email: 'new.contact@example.com', language: 'en' }, payload: sample }] }, null, 2);
+  return `<div class="fld"><label for="sp-event">Event</label>${sel('sp-event', 'config.eventId', c.eventId, EVENTS.map(e => [e.id, `${e.name} · ${e.id}`]), !full)}<small class="muted">${esc(ev?.description ?? '')}</small></div>
+    <div class="fld"><label>Entry</label><div class="seg"><button type="button" class="${c.entryMode === 'single' ? 'on' : ''}" data-set="config.entryMode" data-val="single" ${full ? '' : 'disabled'}>Single</button><button type="button" class="${c.entryMode === 'batch' ? 'on' : ''}" data-set="config.entryMode" data-val="batch" ${full ? '' : 'disabled'}>Batch</button></div><small class="muted">${c.entryMode === 'single' ? 'One contact per API call.' : 'Many contacts per API call. Batch entry is API only — no file upload.'}</small></div>
+    <label class="ck"><input type="checkbox" data-bind="config.createContact" ${c.createContact ? 'checked' : ''} ${full ? '' : 'disabled'}><span>Create the contact if missing<small>Unknown contacts are added to the ${j.contactList} list from the request.</small></span></label>
+    <div class="info">${icon('clock')} Events are processed within 60 s of the API call.</div>
+    <div class="sec">Payload fields</div><small class="muted">Click a field to copy it as a placeholder.</small>
+    <div class="hrow wrap" style="gap:6px">${(ev?.payload ?? []).map(p => `<button type="button" class="chip ph" data-act="copy-ph" data-arg="{{${p.name}}}" title="${p.type} · e.g. ${esc(p.sample)}">{{${p.name}}}</button>`).join('')}</div>
+    <table class="tbl" style="font-size:12px"><thead><tr><th>Field</th><th>Type</th><th>Sample</th></tr></thead><tbody>${(ev?.payload ?? []).map(p => `<tr><td class="mono">${p.name}</td><td>${p.type}</td><td class="muted-2">${esc(p.sample)}</td></tr>`).join('')}</tbody></table>
+    <div class="sec">API code</div><div class="small muted-2">POST /api/journeys/${j.id}/events · single</div><pre class="code">${esc(single)}</pre><div class="small muted-2">POST /api/journeys/${j.id}/events/batch · batch</div><pre class="code">${esc(batch)}</pre>`;
+}
+/* [4] Delivery: stepper Create (name + channel) → Content → Details; the only field editable on an Active version is Content */
+function deliveryPanel(s, v, j, full) {
+  const c = s.config, sub = app.editorSub[s.id] ?? 'create', item = contentById(c.contentId), offer = offerById(c.offerId), contentOk = canEdit(v, s, 'contentId');
+  const ev = eventById(j.eventId);
+  const sample = { first_name: 'Camille', last_name: 'Tremblay', email: 'camille.tremblay@example.com', phone: '+1 514 555 0199', plan: 'Mobile 20 GB', language: 'FR', ...Object.fromEntries((ev?.payload ?? []).map(p => [p.name, p.sample])), ...offerFields(offer) };
+  const steps = [['create', 'Create'], ['content', 'Content'], ['details', 'Details']], idx = steps.findIndex(x => x[0] === sub);
+  const stepper = `<div class="stepper">${steps.map(([k, l], i) => `<button type="button" class="${sub === k ? 'on' : i < idx ? 'done' : ''}" data-sub="${k}"><i>${i + 1}</i>${l}</button>`).join('')}</div>`;
+  if (sub === 'create') return `${stepper}
+    <div class="fld"><label for="sp-name">Delivery name</label><input id="sp-name" data-bind="name" value="${esc(s.name)}" ${full ? '' : 'disabled'}></div>
+    <div class="fld"><label>Channel <small class="muted">— one channel per Delivery</small></label><div class="chan-cards">${CHANNELS.map(ch => `<button type="button" class="chan-card ${c.channel === ch ? 'on' : ''}" data-act="set-channel" data-arg="${ch}" ${full ? '' : 'disabled'}>${chanIcon(ch)}<span>${CHANNEL_LABEL[ch]}</span></button>`).join('')}</div></div>
+    <dl class="kv"><dt>Content</dt><dd>${item ? `${esc(item.name)} (${item.language.toUpperCase()})` : '<span style="color:var(--bad)">Not chosen</span>'}</dd><dt>Offer</dt><dd>${offer ? `${esc(offer.name)} · ${offer.code}` : '—'}</dd><dt>Rules</dt><dd>${esc(policyById(c.policyId)?.name ?? 'No policy')}</dd></dl>
+    <button type="button" class="btn outline sm" style="align-self:flex-start" data-sub="content">Next: Content →</button>`;
+  if (sub === 'content') {
+    const b = item?.body ?? {};
+    const preview = !item ? '' : `<div class="preview"><div class="pv-h">${chanIcon(item.channel)}<b>${esc(item.name)}</b>${pill(item.language.toUpperCase())}<span class="muted small right">Read-only preview · sample values</span></div><div class="pv-b">${item.channel === 'email' ? `<div><span class="muted">Subject</span> ${esc(fill(b.subject, sample))}</div><div><span class="muted">Preheader</span> ${esc(fill(b.preheader, sample))}</div><pre>${esc(fill(b.body, sample))}</pre>` : item.channel === 'sms' ? `<pre>${esc(fill(b.text, sample))}</pre><div class="counter">${b.text.length} / 160 · ${Math.max(1, Math.ceil(b.text.length / 160))} part${b.text.length > 160 ? 's' : ''}</div>` : `<div><b>${esc(fill(b.title, sample))}</b></div><div>${esc(fill(b.text, sample))}</div><div class="small muted">${esc(fill(b.link, sample))}</div>`}</div></div>
+      <div class="small muted">Placeholders used: ${contentPlaceholders(item).map(p => `<span class="chip mono">{{${p}}}</span>`).join(' ') || 'none'}</div>`;
+    return `${stepper}
+      <div class="fld"><label for="sp-content">Content <small class="muted">— ready-made, ${CHANNEL_LABEL[c.channel]}, single-language</small></label>${sel('sp-content', 'config.contentId', c.contentId, [['', 'Choose content…'], ...contentsFor(c.channel).map(x => [x.id, `${x.name} · ${x.language.toUpperCase()}${x.isDefault ? ' · default' : ''}`])], !contentOk, c.contentId ? '' : 'style="border-color:var(--bad)"')}<small class="muted">${v.status === 'active' || v.status === 'closing' ? 'Changing the content needs no approval; it is logged in the version history.' : 'Content items are managed in Content; they are not edited here.'}</small></div>
+      ${preview}
+      <div class="hrow" style="gap:6px"><button type="button" class="btn outline sm" data-sub="create">← Create</button><button type="button" class="btn outline sm" data-sub="details">Next: Details →</button></div>`;
+  }
+  return `${stepper}
+    <div class="${full ? '' : 'ro'} col" style="gap:12px">
+      <div class="fld"><label for="sp-offer">Offer <small class="muted">(optional)</small></label>${sel('sp-offer', 'config.offerId', c.offerId, [['', 'No offer'], ...OFFERS.map(o => [o.id, `${o.name} · ${o.code}`])], !full)}<small class="muted">${offer ? `Fills <span class="mono">{{offer_name}}</span>, <span class="mono">{{offer_code}}</span> and <span class="mono">{{offer_link}}</span>. Sends are attributed to ${offer.code}.` : 'Name, code and link of the offer become placeholders; sends are attributed to the offer.'}</small></div>
+      <div class="fld"><label for="sp-policy">Communication rules</label>${sel('sp-policy', 'config.policyId', c.policyId, [['', 'No policy'], ...POLICIES.map(p => [p.id, p.name])], !full)}${c.policyId ? `<small class="muted">${esc(policyById(c.policyId)?.summary ?? '')}</small>` : ''}</div>
+      ${j.overrideUnsubscribe ? `<label class="ck"><input type="checkbox" data-bind="config.sendToUnsubscribed" ${c.sendToUnsubscribed ? 'checked' : ''} ${full ? '' : 'disabled'}><span>Send even to unsubscribed contacts<small>Available because “Override unsubscribe” is on for this journey.</small></span></label>` : ''}
+    </div>
+    <div class="info">${icon('info')} Contacts who can’t be reached on this channel skip this step and continue.</div>
+    <button type="button" class="btn outline sm" style="align-self:flex-start" data-sub="content">← Content</button>`;
+}
+/* [5] Duration wait */
+const waitPanel = (s, v, j, full) => `<div class="fld"><label>Wait after the previous step</label><div class="hrow"><input type="number" min="1" max="999" style="width:90px" data-bind="config.amount" data-type="number" value="${s.config.amount}" ${full ? '' : 'disabled'}>${sel('sp-unit', 'config.unit', s.config.unit, [['hours', 'hours'], ['days', 'days']], !full)}</div><small class="muted">Contacts wait here, then continue to the next step.</small></div>`;
+/* [5] Segment split: ordered segments; Remaining always present */
+function segmentPanel(s, v, j, full) {
+  const segs = s.config.segments;
+  return `<small class="muted">Contacts take the first segment they belong to, in this order. The rest go to Remaining.</small>
+    <div class="col" style="gap:6px">${segs.map((sid, i) => `<div class="pathrow">${full ? `<span class="ord"><button type="button" title="Move up" data-act="seg-move" data-arg="${i}|-1">▲</button><button type="button" title="Move down" data-act="seg-move" data-arg="${i}|1">▼</button></span>` : ''}<span class="pl">Segment ${i + 1}</span>${sel(`sp-seg-${i}`, `config.segments.${i}`, sid ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])], !full, sid ? '' : 'style="border-color:var(--bad)"')}${full ? `<button type="button" class="x" title="Remove path" data-act="seg-remove" data-arg="${i}" ${segs.length <= 1 ? 'disabled' : ''}>×</button>` : ''}</div>`).join('')}
+    <div class="pathrow">${full ? '<span class="ord" style="width:12px"></span>' : ''}<span class="pl">Remaining</span><span class="small muted grow">Always present — cannot be removed.</span></div></div>
+    ${full ? `<button type="button" class="btn outline sm" style="align-self:flex-start" data-act="seg-add">${icon('plus')} Add segment</button>` : ''}`;
+}
+/* [5] Engagement split: linked Delivery (earlier on the path) */
+function engagementPanel(s, v, j, full) {
+  const cands = deliveriesBefore(v, s.id);
+  return `<div class="fld"><label for="sp-link">Linked delivery</label>${sel('sp-link', 'config.deliveryStepId', s.config.deliveryStepId, [['', 'Choose a delivery…'], ...cands.map(d => [d.id, `${d.name} · ${CHANNEL_LABEL[d.config.channel]}`])], !full, s.config.deliveryStepId ? '' : 'style="border-color:var(--bad)"')}<small class="muted">${cands.length ? 'Only deliveries earlier on this path can be linked.' : 'No delivery before this step yet — add one first.'}</small></div>
+    <div class="col" style="gap:4px"><div class="pathrow"><span class="pl">Opened</span><span class="small muted">Opened the message (email / push).</span></div><div class="pathrow"><span class="pl">Clicked</span><span class="small muted">Clicked a link.</span></div><div class="pathrow"><span class="pl">Remaining</span><span class="small muted">Neither, or skipped.</span></div></div>`;
+}
+/* [5] Shuffle split: paths with %, Split evenly, must total 100 */
+function shufflePanel(s, v, j, full) {
+  const total = s.config.paths.reduce((a, p) => a + (+p.pct || 0), 0);
+  return `<small class="muted">Contacts are assigned at random by these shares.</small>
+    <div class="col" style="gap:6px">${s.config.paths.map((p, i) => `<div class="pathrow"><input class="inp" data-bind="config.paths.${i}.label" data-rename="${i}" value="${esc(p.label)}" ${full ? '' : 'disabled'}><input class="inp" type="number" min="0" max="100" style="width:70px;flex:none" data-bind="config.paths.${i}.pct" data-type="number" value="${p.pct}" ${full ? '' : 'disabled'}><span class="muted small">%</span>${full ? `<button type="button" class="x" title="Remove path" data-act="sh-remove" data-arg="${i}" ${s.config.paths.length <= 2 ? 'disabled' : ''}>×</button>` : ''}</div>`).join('')}</div>
+    <div class="hrow" style="justify-content:space-between"><span class="small ${total === 100 ? 'muted' : ''}" ${total === 100 ? '' : 'style="color:var(--bad);font-weight:500"'}>Total ${total} %${total !== 100 ? ' — must be 100 %' : ''}</span>${full ? `<span class="hrow" style="gap:6px"><button type="button" class="btn outline sm" data-act="sh-even">Split evenly</button><button type="button" class="btn outline sm" data-act="sh-add">${icon('plus')} Path</button></span>` : ''}</div>`;
+}
+/* [5] Control group */
+const controlPanel = (s, v, j, full) => `<div class="fld"><label for="sp-cg">Group name</label><input id="sp-cg" data-bind="config.name" value="${esc(s.config.name)}" ${full ? '' : 'disabled'}></div><div class="info">${icon('info')} Contacts stop here and are kept for comparison.</div>`;
+
+/* bind the panel's inputs: data-bind="path" sets a field on the step; data-set/data-val for segmented buttons; data-sub for the stepper */
+function wireStepPanel(j, v) {
+  const panel = $('jpanel'), s = app.selectedStepId ? stepOf(v, app.selectedStepId) : null; if (!panel || !s) return;
+  const setPath = (obj, path, val) => { const parts = path.split('.'); let o = obj; for (const p of parts.slice(0, -1)) o = o[p]; o[parts[parts.length - 1]] = val; };
+  const commit = (path, val, el) => {
+    if (s.type === 'delivery' && path === 'config.contentId' && (v.status === 'active' || v.status === 'closing')) {
+      logHistory(v, `Content changed by ${me().name} (${s.name}): ${contentById(s.config.contentId)?.name ?? 'none'} → ${contentById(val)?.name ?? 'none'}`);
+    }
+    if (s.type === 'shuffleSplit' && el?.dataset.rename !== undefined) { // renaming a path renames its edge
+      const i = +el.dataset.rename, old = s.config.paths[i].label, e = edgeOut(v, s.id, old); setPath(s, path, val); if (e) e.label = val; touch(j); renderEditor(); return;
+    }
+    setPath(s, path, val === '' && path.endsWith('Id') ? null : val);
+    if (s.type === 'segmentSplit') { // rename the edge that carried the old segment key
+      const keys = outletsOf(s).map(o => o.key); v.edges.filter(e => e.from === s.id).forEach((e, _, arr) => { if (!keys.includes(e.label)) { const free = keys.find(k => k !== 'Remaining' && !arr.some(x => x.label === k)); if (free) e.label = free; } }); syncEdges(v, s);
+    }
+    if (s.type === 'event') { j.eventId = s.config.eventId; j.entryMode = s.config.entryMode; }
+    touch(j); renderEditor();
+  };
+  panel.querySelectorAll('[data-bind]').forEach(el => {
+    const ev = el.tagName === 'INPUT' && (el.type === 'text' || !el.type || el.type === 'number') ? 'change' : 'change';
+    el.addEventListener(ev, () => { let val = el.type === 'checkbox' ? el.checked : el.value; if (el.dataset.type === 'number') val = Math.max(0, Number(val) || 0); commit(el.dataset.bind, val, el); });
+    if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
+  });
+  panel.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => commit(b.dataset.set, b.dataset.val)));
+  panel.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => { app.editorSub[s.id] = b.dataset.sub; renderEditor(); }));
+  $('vsel').onchange = e => { app.versionId = e.target.value; app.selectedStepId = null; renderEditor(); };
+}
+
+/* editor actions (delegated through data-act) */
+function handleAct(act, arg, el, e) {
+  const j = curJourney(), v = curVersion(), s = app.selectedStepId && v ? stepOf(v, app.selectedStepId) : null;
+  switch (act) {
+    case 'zoom-in': zoomCanvas('cwrap', 1.2); return;
+    case 'zoom-out': zoomCanvas('cwrap', 1 / 1.2); return;
+    case 'fit': fitCanvasOf('cwrap'); return;
+    case 'orient': j.orientation = arg; canvasFor('cwrap').fitted = false; renderEditor(); return;
+    case 'select-step': app.selectedStepId = arg || null; renderEditor(); return;
+    case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
+    case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; touch(j); renderEditor(); } return;
+    case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, type => addAfter(s.id, arg, type)); return;
+    case 'copy-ph': navigator.clipboard?.writeText(arg).catch(() => {}); toast('Copied', `${arg} — paste it into content outside this prototype.`); return;
+    case 'set-channel': if (s && canEdit(v, s, 'channel') && s.config.channel !== arg) { s.config.channel = arg; s.config.contentId = defaultContentFor(arg)?.id ?? null; touch(j); renderEditor(); } return;
+    case 'seg-add': s.config.segments.push(null); touch(j); renderEditor(); return;
+    case 'seg-remove': { const i = +arg; s.config.segments.splice(i, 1); syncEdges(v, s); touch(j); renderEditor(); return; }
+    case 'seg-move': { const [i, d] = arg.split('|').map(Number), k = i + d; if (k < 0 || k >= s.config.segments.length) return; [s.config.segments[i], s.config.segments[k]] = [s.config.segments[k], s.config.segments[i]]; touch(j); renderEditor(); return; }
+    case 'sh-add': s.config.paths.push({ label: `Path ${String.fromCharCode(65 + s.config.paths.length)}`, pct: 0 }); touch(j); renderEditor(); return;
+    case 'sh-remove': s.config.paths.splice(+arg, 1); syncEdges(v, s); touch(j); renderEditor(); return;
+    case 'sh-even': { const n = s.config.paths.length, base = Math.floor(100 / n); s.config.paths.forEach((p, i) => p.pct = base + (i < 100 - base * n ? 1 : 0)); touch(j); renderEditor(); return; }
+    default: if (typeof handleVersionAct === 'function') handleVersionAct(act, arg, el, e);
+  }
+}
+
 function renderMonitor() { crumb([{ label: 'Journey Monitor' }]); $('view-monitor').innerHTML = `<div class="card"><div class="card-h"><h2>Journey Monitor</h2></div></div>`; }
-function fitCanvas() {}
 
 /* ---- global event delegation: every control carries data-act ---- */
 document.addEventListener('click', e => {
