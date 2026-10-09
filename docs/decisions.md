@@ -11,3 +11,5 @@
 | D7 | Payment failed v3 = v2 + one Push step on the FR path + the FR wait changed 2 → 1 days. | The brief: one step added, one wait changed. | Settled |
 | D8 | Sends are attributed to the Delivery's offer: an Offers table in Monitor › Overview and "attributed to CODE" in the contact timeline. No offer page. | The brief; offer pages are out of scope. | Settled |
 | D9 | Every number in Monitor comes from `CONTACT_STATES`, written by a seeded walk of a few hundred contacts per journey. | "Do not hard-code stats"; counts add up across splits by construction. | Settled |
+| D10 | Steps can be dragged freely in a Draft; the position is saved per step and per orientation, and the *Auto-layout* button puts every step back. Locked versions and the Monitor keep the automatic layout. | Asked for by the owner after review; the brief's "auto-layout only" stays the default. | Settled |
+| D11 | A Draft's step cards carry a × to delete (as in CM-New-UI-UX2); on a locked version, selecting a step shows once why it cannot be edited. | Review feedback: deletion was not discoverable; the lock was silent. | Settled |

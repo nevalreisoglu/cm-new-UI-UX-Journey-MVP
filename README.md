@@ -99,7 +99,8 @@ Where the brief was ambiguous the simpler behaviour was chosen (see also `docs/d
 14. **Volumes** are a few hundred simulated contacts per journey, not Fizz's ~2 M.
 15. **Offer attribution** is an *Offers* table in Monitor › Overview and "attributed to CODE" in
     the contact timeline; there is no offer page.
-16. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
+16. **Free positioning** is available in Drafts (drag a step; *Auto-layout* resets); locked versions and the Monitor always use the automatic layout.
+17. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
 
 ## Out of scope
 

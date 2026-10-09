@@ -526,6 +526,7 @@ body{font-size:14px;line-height:1.43}
 .ctool .dir button.off{background:var(--grey-2);color:var(--ink-2)}
 .canvas-wrap{min-height:320px}
 .node{cursor:pointer}
+.jb:not(.locked) .node{cursor:grab}
 .node rect.body{stroke-width:1.5}
 .node.invalid rect.body{stroke:var(--bad);stroke-width:2}
 .node.hl rect.body{stroke:var(--sec);stroke-width:3;filter:drop-shadow(0 0 8px rgba(245,130,32,.45))}
@@ -1308,7 +1309,8 @@ function layoutGraph(graph, orientation, extraH = 0) {
   for (const n of graph.nodes) {
     const s = size(n), d = depth.get(n.id) ?? 0, c = cross.get(n.id) ?? 0;
     const rankPos = 24 + d * (rankSize + GAP_RANK), crossPos = 24 + c * (crossSize + GAP_CROSS);
-    const x = orientation === 'LR' ? rankPos : crossPos + (NW - s.w) / 2, y = orientation === 'LR' ? crossPos + (NH + extraH - s.h) / 2 : rankPos;
+    let x = orientation === 'LR' ? rankPos : crossPos + (NW - s.w) / 2, y = orientation === 'LR' ? crossPos + (NH + extraH - s.h) / 2 : rankPos;
+    const saved = n.step?.pos?.[orientation]; if (saved) { x = saved.x; y = saved.y; } // free positioning: a dragged step keeps its place
     pos[n.id] = { x, y, w: s.w, h: s.h }; width = Math.max(width, x + s.w + 24); height = Math.max(height, y + s.h + 24);
   }
   return { pos, width, height };
@@ -1583,6 +1585,7 @@ function drawCanvas(wrapId, graph, opts) {
       <text class="n" x="10" y="43">${esc(trunc(s.name, 30))}</text>
       <text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 34))}</text>
       ${stats ? `<rect class="statbg" x="0" y="${NH}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${NH + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${NH + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
+      ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
       ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${NH / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
   }
@@ -1608,12 +1611,21 @@ function zoomCanvas(wrapId, f) {
 /* pan by drag on the background, wheel zoom, click selects — wired once per wrap */
 function wireCanvas(wrapId, handlers = {}) {
   const wrap = $(wrapId); if (!wrap || wrap.dataset.wired) return; wrap.dataset.wired = '1';
-  const cv = canvasFor(wrapId); let pan = null;
-  wrap.addEventListener('pointerdown', e => { if (e.button !== 0 || e.target.closest('.node, .eplus, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
-  wrap.addEventListener('pointermove', e => { if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
-  wrap.addEventListener('pointerup', e => { const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
+  const cv = canvasFor(wrapId); let pan = null, drag = null;
+  wrap.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const node = e.target.closest('.node');
+    if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
+    if (e.target.closest('.node, .eplus, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+  wrap.addEventListener('pointermove', e => {
+    if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
+    if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
+  wrap.addEventListener('pointerup', e => {
+    if (drag) { const d = drag; drag = null; if (d.moved) { handlers.onMove(d.id, Math.round(d.x), Math.round(d.y)); return; } }
+    const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
   wrap.addEventListener('wheel', e => { e.preventDefault(); const r = wrap.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.min(2.5, Math.max(.2, cv.view.k * (e.deltaY < 0 ? 1.1 : .9))); cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k }; wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`; }, { passive: false });
   wrap.addEventListener('click', e => {
+    const del = e.target.closest('.ndel'); if (del) { handlers.onDelete?.(del.dataset.del); return; }
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
     const plus = e.target.closest('.eplus'); if (plus) { handlers.onPlus?.(plus.dataset.edge, e); return; }
@@ -1648,6 +1660,7 @@ function renderEditor() {
               <button class="ic" id="btn-zin" data-act="zoom-in" title="Zoom in">${icon('zoomin')}<span>Zoom in</span></button>
               <button class="ic on" id="btn-fit" data-act="fit" title="Fit to view">${icon('fit')}<span>Fit</span></button>
               <span class="muted small zoomlbl num" style="padding:0 6px">100 %</span>
+              ${locked ? '' : `<button class="ic" id="btn-autolayout" data-act="autolayout" title="Put every step back on the automatic layout" ${v.steps.some(s => s.pos?.[j.orientation]) ? '' : 'disabled'}>${icon('fit')}<span>Auto-layout</span></button>`}
               ${locked ? '' : `<button class="ic" id="btn-validate" data-act="validate" title="Validate">${icon('validate')}<span>Validate</span></button><button class="ic" id="btn-del" data-act="delete-step" title="Delete step" ${!app.selectedStepId || stepOf(v, app.selectedStepId)?.type === 'event' ? 'disabled' : ''}>${icon('trash')}<span>Delete step</span></button>`}
               <div class="dir"><button class="${j.orientation === 'LR' ? '' : 'off'}" data-act="orient" data-arg="LR" title="Left to right">${icon('lr')}Horizontal</button><button class="${j.orientation === 'TB' ? '' : 'off'}" data-act="orient" data-arg="TB" title="Top to bottom">${icon('tb')}Vertical</button></div>
             </div>
@@ -1659,11 +1672,13 @@ function renderEditor() {
       <aside class="card panel jinfo" id="jpanel">${stepPanelHtml(j, v)}</aside>
     </div>`;
   wireCanvas('cwrap', {
-    onSelect: id => { app.selectedStepId = id; renderEditor(); },
+    onSelect: id => { app.selectedStepId = id; renderEditor(); if (locked && app.lockHintFor !== v.id) { app.lockHintFor = v.id; toast('Structure locked', v.status === 'active' || v.status === 'closing' ? 'Steps cannot be moved, added or deleted on an Active version. Use “Copy to new version” and edit the draft; only the Delivery content can change here.' : v.status === 'pending' ? 'This version is waiting for approval. Withdraw it to edit, or copy it to a new version.' : 'This version is closed. Copy it to a new version to continue.', 'warn'); } },
+    onDelete: locked ? null : id => { const st = stepOf(v, id); if (!st || st.type === 'event') return; removeStep(v, id); if (app.selectedStepId === id) app.selectedStepId = null; touch(j); renderEditor(); },
     onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
     onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type)),
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
+    onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
   });
   const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
   drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
@@ -1862,6 +1877,7 @@ function handleAct(act, arg, el, e) {
     case 'zoom-out': zoomCanvas('cwrap', 1 / 1.2); return;
     case 'fit': fitCanvasOf('cwrap'); return;
     case 'orient': j.orientation = arg; canvasFor('cwrap').fitted = false; renderEditor(); return;
+    case 'autolayout': for (const st of v.steps) if (st.pos) delete st.pos[j.orientation]; touch(j); canvasFor('cwrap').fitted = false; renderEditor(); return;
     case 'select-step': app.selectedStepId = arg || null; renderEditor(); return;
     case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
     case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; touch(j); renderEditor(); } return;

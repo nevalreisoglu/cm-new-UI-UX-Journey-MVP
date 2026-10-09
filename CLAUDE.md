@@ -147,7 +147,7 @@ Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffl
 Action: Control group, Exit.
 
 ### Canvas (centre)
-- **Auto-layout only** (`layoutTree`), no free positioning. Horizontal (default) / Vertical
+- **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets. Horizontal (default) / Vertical
   toggle, saved per journey. Zoom out / Zoom in / Fit via CSS transform; pan by drag on the
   background. Collapse / expand a split path.
 - Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
