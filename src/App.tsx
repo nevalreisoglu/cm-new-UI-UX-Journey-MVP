@@ -68,9 +68,9 @@ function Shell() {
       </nav>
 
       <main className="main">
-        {route.name === 'journeys' && <JourneyList />}
-        {route.name === 'editor' && <JourneyEditor journeyId={route.journeyId} versionId={route.versionId} />}
-        {route.name === 'monitor' && <Monitor journeyId={route.journeyId} tab={route.tab} stepId={route.stepId} />}
+        {route.name === 'journeys' && <JourneyList key={state.role} />}
+        {route.name === 'editor' && <JourneyEditor key={`${route.journeyId}:${route.versionId ?? ""}`} journeyId={route.journeyId} versionId={route.versionId} />}
+        {route.name === 'monitor' && <Monitor key={route.journeyId} journeyId={route.journeyId} tab={route.tab} stepId={route.stepId} />}
       </main>
       <Toasts />
     </div>

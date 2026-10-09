@@ -122,7 +122,7 @@ export function Canvas(props: CanvasProps) {
       const fromCard = orientation === 'LR' ? { ...from, h: Math.min(from.h, NODE_H) } : from
       const toCard = orientation === 'LR' ? { ...to, h: Math.min(to.h, NODE_H) } : to
       // labels sit mid-edge where fanned paths are apart; in the editor the + is there, so move them toward the target
-      return { e, ...edgePath(fromCard, toCard, orientation, idx, sib.length, editable ? 0.72 : 0.5) }
+      return { e, ...edgePath(fromCard, toCard, orientation, idx, sib.length, editable ? 0.72 : 0.42) }
     })
   }, [graph.edges, layout, orientation, editable])
 

@@ -110,10 +110,13 @@ export function JourneyList() {
                   <tr><td colSpan={7} className="empty">No journeys in this tab.</td></tr>
                 )}
                 {filtered.map(({ j, v, eventId, channels }) => {
-                  const closing = j.versions.find((x) => x.status === 'closing')
-                  const shown = v
+                  const pending = j.versions.find((x) => x.status === 'pending')
+                  // the approver's queue shows the version waiting for approval; other tabs show the active one
+                  const shown = tab === 'pending' && pending ? pending : v
+                  const others = j.versions.filter((x) => x.id !== shown?.id && (x.status === 'closing' || x.status === 'pending'))
+                  const open = () => navigate({ name: 'editor', journeyId: j.id, versionId: shown?.id })
                   return (
-                    <tr key={j.id} className="link" onClick={() => navigate({ name: 'editor', journeyId: j.id })}>
+                    <tr key={j.id} className="link" onClick={open}>
                       <td>
                         <div className="t1 row" style={{ gap: 8 }}>
                           {j.name}
@@ -136,13 +139,13 @@ export function JourneyList() {
                               <VersionPill status={shown.status} />
                               {shown.note && <span className="t2 nowrap">{shown.note}</span>}
                             </div>
-                            {closing && closing.id !== shown.id && (
-                              <div className="row small" style={{ gap: 6 }}>
-                                <span>v{closing.number}</span>
-                                <VersionPill status="closing" />
-                                {closing.note && <span className="t2 nowrap">{closing.note}</span>}
+                            {others.map((o) => (
+                              <div key={o.id} className="row small" style={{ gap: 6 }}>
+                                <span>v{o.number}</span>
+                                <VersionPill status={o.status} />
+                                {o.note && <span className="t2 nowrap">{o.note}</span>}
                               </div>
-                            )}
+                            ))}
                           </div>
                         ) : '—'}
                       </td>
@@ -152,11 +155,11 @@ export function JourneyList() {
                         <div className="t2">{userName(j.updatedBy)}</div>
                       </td>
                       <td style={{ position: 'relative', whiteSpace: 'nowrap' }} onClick={(e) => e.stopPropagation()}>
-                        <button className="btn outline sm" onClick={() => navigate({ name: 'editor', journeyId: j.id })}>Open</button>{' '}
+                        <button className="btn outline sm" onClick={open}>Open</button>{' '}
                         <button className="btn outline sm" onClick={() => setMenuFor(menuFor === j.id ? null : j.id)}>More ▾</button>
                         {menuFor === j.id && (
                           <div className="menu" style={{ right: 12, top: 44 }}>
-                            <button onClick={() => { setMenuFor(null); navigate({ name: 'editor', journeyId: j.id }) }}><Icon name="journeys" /> Open editor</button>
+                            <button onClick={() => { setMenuFor(null); open() }}><Icon name="journeys" /> Open editor</button>
                             <button onClick={() => { setMenuFor(null); navigate({ name: 'monitor', journeyId: j.id }) }}><Icon name="monitor" /> Open Monitor</button>
                             <button onClick={() => { setMenuFor(null); const c = duplicateJourney(j); toast('ok', 'Journey duplicated', `“${c.name}” created as a draft.`); setTab('draft') }}><Icon name="copy" /> Duplicate</button>
                           </div>

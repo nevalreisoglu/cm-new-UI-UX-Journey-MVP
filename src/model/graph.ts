@@ -180,27 +180,20 @@ export function insertOnConnection(steps: Step[], fromId: string, outletId: stri
   return [...next, newStep]
 }
 
-/** Remove a step. Single-outlet steps are spliced out; splits and terminals take their subtree with them. */
+/** Remove a step. Single-outlet steps are spliced out. A split keeps its first path (spliced into
+ *  the parent) and drops the other paths. Terminal steps leave the connection open. */
 export function removeStep(steps: Step[], id: string): Step[] {
   const step = steps.find((s) => s.id === id)
   if (!step || step.type === 'event') return steps
   const parent = parentOf(steps, id)
-  if (step.outlets.length === 1) {
-    const next = step.outlets[0].next
-    return steps
-      .filter((s) => s.id !== id)
-      .map((s) =>
-        parent && s.id === parent.step.id
-          ? { ...s, outlets: s.outlets.map((o) => (o.id === parent.outlet.id ? { ...o, next } : o)) }
-          : s,
-      )
-  }
-  const drop = new Set([id, ...descendants(steps, id)])
+  const keep = step.outlets[0]?.next ?? null
+  const drop = new Set<string>([id])
+  for (const o of step.outlets.slice(1)) if (o.next) for (const d of [o.next, ...descendants(steps, o.next)]) drop.add(d)
   return steps
     .filter((s) => !drop.has(s.id))
     .map((s) =>
       parent && s.id === parent.step.id
-        ? { ...s, outlets: s.outlets.map((o) => (o.id === parent.outlet.id ? { ...o, next: null } : o)) }
+        ? { ...s, outlets: s.outlets.map((o) => (o.id === parent.outlet.id ? { ...o, next: keep } : o)) }
         : s,
     )
 }

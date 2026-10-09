@@ -80,4 +80,7 @@ e. monitor
 f. polish against the CM prototype look
 
 ## Deviations from the plan
-- None yet.
+- Steps (c) and (d) were built together: the version bar and the lock mode shape the editor.
+- Deleting a split keeps its first path instead of removing the whole subtree (see README › Open questions).
+- The reference prototype's host was not reachable from the build environment; its source repository
+  (`CM-New-UI-UX2`, `index.html` + `docs/brand.md`) was used instead to copy the tokens and component styles.
