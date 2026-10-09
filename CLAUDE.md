@@ -149,7 +149,7 @@ Entry: Event · Delivery · Wait (type chosen inside the card) · Split: Segment
 Shuffle · Action: Control group, Exit.
 
 ### Canvas (centre)
-- **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets. Horizontal (default) / Vertical
+- **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets, and any structural change (add / remove a step or branch) resets too. Horizontal (default) / Vertical
   toggle, saved per journey. Zoom out / Zoom in / Fit via CSS transform; pan by drag on the
   background. Collapse / expand a split path.
 - Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
@@ -157,8 +157,8 @@ Shuffle · Action: Control group, Exit.
   that removes it together with the steps after it; the path stays open (dashed) until a step
   or an Exit is added.
 - **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
-  more than one outgoing connection ("Add parallel branch" in its panel; "×" on the branch
-  removes it). Contacts take every branch at the same time. Edges of parallel branches carry
+  more than one outgoing connection: the "+" menu offers *In sequence* / *Parallel* when the
+  source allows it, the panel has "Add parallel branch", and "×" on the branch removes it. Contacts take every branch at the same time. Edges of parallel branches carry
   the labels `∥2`, `∥3`, …; the main connection keeps `""`.
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
