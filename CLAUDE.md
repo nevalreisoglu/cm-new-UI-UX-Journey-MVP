@@ -161,8 +161,9 @@ Shuffle · Action: Control group, Exit.
   branch is added; the target's previous incoming connection is left open. Loops and connecting
   into the Event entry are refused.
 - **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
-  more than one outgoing connection: the "+" menu offers *In sequence* / *Parallel* when the
-  source allows it, the panel has "Add parallel branch", and "×" on the branch removes it. Contacts take every branch at the same time. Edges of parallel branches carry
+  more than one outgoing connection. The "+" on a connection inserts in sequence; the "+" on a
+  card (next to its out port) adds a step on a new branch from that step (an open path first,
+  otherwise a parallel branch); the panel has "Add parallel branch"; "×" on the branch removes it. Contacts take every branch at the same time. Edges of parallel branches carry
   the labels `∥2`, `∥3`, …; the main connection keeps `""`.
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red

@@ -4,6 +4,9 @@
 - Free positioning in Drafts, × on cards, lock hint; "+ New journey" opens the editor directly;
   contact list = an existing datamart; node cards edit their key settings inline; one Wait step
   with Duration (+ send window) / Until / For event / For segment match; order_completed event.
+- Removable connections (×), parallel branches, drag-to-connect from the orange out port; the
+  "+" on a connection inserts in sequence, the "+" on a card adds a branch (open path first,
+  otherwise parallel) — no In sequence / Parallel toggle.
 
 ## v0.2 — journey list, editor, versions, monitor, tests
 - Journey list with status tabs, filters, row actions and the New journey modal.

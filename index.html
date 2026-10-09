@@ -490,7 +490,6 @@ body{font-size:14px;line-height:1.43}
 .menu{position:absolute;z-index:50;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);min-width:180px;padding:4px;display:flex;flex-direction:column}
 .menu button{border:0;background:none;text-align:left;padding:7px 10px;border-radius:4px;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer}
 .menu button:hover{background:var(--surface-2)}
-.menu .seg.mode button{padding:4px 10px;font-size:11.5px}
 .menu .grp{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px 2px}
 .pbar{height:6px;border-radius:3px;background:var(--grey-2);overflow:hidden;display:inline-block;vertical-align:middle}
 .pbar i{display:block;height:100%;background:var(--sec)}
@@ -565,6 +564,11 @@ body{font-size:14px;line-height:1.43}
 .eplus:hover circle,.eplus.hover circle{fill:var(--cta);stroke:var(--cta)}
 .eplus:hover path,.eplus.hover path{stroke:#fff}
 .node circle.port.out{fill:var(--orange);stroke:var(--orange);cursor:crosshair}
+.nplus{cursor:pointer}
+.nplus circle{fill:#fff;stroke:var(--orange);stroke-width:1.5}
+.nplus path{stroke:var(--sec-ink);stroke-width:1.8;stroke-linecap:round}
+.nplus:hover circle{fill:var(--orange)}
+.nplus:hover path{stroke:#fff}
 .node circle.port.out:hover{r:7}
 .node.target rect.body{stroke:var(--cta-bright);stroke-width:3}
 .ecut{cursor:pointer}
@@ -1675,7 +1679,7 @@ function drawCanvas(wrapId, graph, opts) {
       <text class="n" x="10" y="43">${esc(trunc(s.name, 32))}</text>
       ${rows ? `<foreignObject x="8" y="${FIELD_TOP}" width="${NW - 16}" height="${rows * FIELD_H}"><div xmlns="http://www.w3.org/1999/xhtml" class="nfields">${fields}</div></foreignObject>` : `<text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 36))}</text>`}
       ${stats ? `<rect class="statbg" x="0" y="${H}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${H + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${H + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
-      ${opts.editable && s.type !== 'exit' && s.type !== 'controlGroup' ? `<circle class="port out" data-port="${s.id}" cx="${opts.orientation === 'LR' ? NW : NW / 2}" cy="${opts.orientation === 'LR' ? Math.min(H, NH) / 2 : H}" r="5"><title>Drag to another step to connect</title></circle>` : ''}
+      ${opts.editable && s.type !== 'exit' && s.type !== 'controlGroup' ? `<circle class="port out" data-port="${s.id}" cx="${opts.orientation === 'LR' ? NW : NW / 2}" cy="${opts.orientation === 'LR' ? Math.min(H, NH) / 2 : H}" r="5"><title>Drag to another step to connect</title></circle>${canParallel(s) || outletsOf(s, opts.version).some(o => !edgeOut(opts.version, s.id, o.key)?.to) ? `<g class="nplus" data-node="${s.id}" transform="translate(${opts.orientation === 'LR' ? NW + 2 : NW / 2 + 14},${opts.orientation === 'LR' ? Math.min(H, NH) / 2 + 16 : H + 2})"><title>Add a step on a new branch from this step</title><circle r="9"/><path d="M-4,0H4M0,-4V4"/></g>` : ''}` : ''}
       ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
       ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${H / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
@@ -1735,8 +1739,8 @@ function wireCanvas(wrapId, handlers = {}) {
     const node = e.target.closest('.node');
     const port = e.target.closest('.port.out');
     if (port && handlers.onConnect) { const p = cv.layout?.pos[port.dataset.port]; drag = { link: true, id: port.dataset.port, sx: e.clientX, sy: e.clientY, x0: p.x + +port.getAttribute('cx'), y0: p.y + +port.getAttribute('cy') }; wrap.setPointerCapture(e.pointerId); return; }
-    if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
-    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse, .port')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+    if (node && handlers.onMove && !e.target.closest('.collapse, .ndel, .nplus')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
+    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse, .port, .nplus')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
   wrap.addEventListener('pointermove', e => {
     if (drag?.link) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; drag.moved = true; let tmp = wrap.querySelector('.tmpline'); if (!tmp) { tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); tmp.setAttribute('class', 'tmpline'); wrap.querySelector('.vp').appendChild(tmp); } tmp.setAttribute('d', `M${drag.x0},${drag.y0} L${drag.x0 + dx},${drag.y0 + dy}`); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.node'); wrap.querySelectorAll('.node.target').forEach(n => n.classList.remove('target')); if (over && over.dataset.id !== drag.id) over.classList.add('target'); return; }
     if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
@@ -1755,6 +1759,7 @@ function wireCanvas(wrapId, handlers = {}) {
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
     const cut = e.target.closest('.ecut'); if (cut) { handlers.onCut?.(cut.dataset.edge); return; }
+    const np = e.target.closest('.nplus'); if (np) { handlers.onBranch?.(np.dataset.node, e); return; }
     const plus = e.target.closest('.eplus'); if (plus) { handlers.onPlus?.(plus.dataset.edge, e); return; }
     const node = e.target.closest('.node'); if (node) { handlers.onSelect?.(node.dataset.id); return; }
   });
@@ -1802,7 +1807,8 @@ function renderEditor() {
     onSelect: id => { app.selectedStepId = id; renderEditor(); if (locked && app.lockHintFor !== v.id) { app.lockHintFor = v.id; toast('Structure locked', v.status === 'active' || v.status === 'closing' ? 'Steps cannot be moved, added or deleted on an Active version. Use “Copy to new version” and edit the draft; only the Delivery content can change here.' : v.status === 'pending' ? 'This version is waiting for approval. Withdraw it to edit, or copy it to a new version.' : 'This version is closed. Copy it to a new version to continue.', 'warn'); } },
     onDelete: locked ? null : id => { const st = stepOf(v, id); if (!st || st.type === 'event') return; removeStep(v, id); if (app.selectedStepId === id) app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); },
     onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
-    onPlus: (edgeId, e) => { const src = stepOf(v, edgeId.slice(0, edgeId.indexOf(':'))); stepMenu(e.clientX, e.clientY, (type, par) => addOnEdge(edgeId, type, par), { allowParallel: !!src && canParallel(src) }); },
+    onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type), { title: 'Insert on this connection' }),
+    onBranch: (id, e) => { const src = stepOf(v, id); if (!src) return; stepMenu(e.clientX, e.clientY, type => addBranch(id, type), { title: 'Add a branch from this step' }); },
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
     onCut: edgeId => { const i = edgeId.indexOf(':'), from = edgeId.slice(0, i), key = edgeId.slice(i + 1), edge = edgeOut(v, from, key); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); if (!isParKey(key)) v.edges.push(E(from, null, key)); if (drop.has(app.selectedStepId)) app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); toast(isParKey(key) ? 'Parallel branch removed' : 'Connection removed', `${drop.size} step${drop.size === 1 ? '' : 's'} after it removed.${isParKey(key) ? '' : ' The path is open — add a step or an Exit with “+”.'}`, 'warn'); },
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
@@ -1857,14 +1863,21 @@ function addAfter(fromId, key, type, parallel = false) {
   const step = newStep(type); if (edge.to) insertOnEdge(v, edge, step); else { edge.to = step.id; v.steps.push(step); }
   relayout(v, j); touch(j); app.selectedStepId = step.id; renderEditor();
 }
+/* "+" on a card: fill an open path of the step if it has one, otherwise start a parallel branch */
+function addBranch(stepId, type) {
+  const v = curVersion(); CUR_V = v; const src = stepOf(v, stepId); if (!src) return;
+  const open = outletsOf(src, v).find(o => !edgeOut(v, stepId, o.key)?.to);
+  if (open) { addAfter(stepId, open.key, type); return; }
+  if (!canParallel(src)) { toast('No free path', 'Every path of this step is already connected. Remove one with × first.', 'warn'); return; }
+  addAfter(stepId, '', type, true);
+}
 function addOnEdge(edgeId, type, parallel) { const i = edgeId.indexOf(':'); addAfter(edgeId.slice(0, i), edgeId.slice(i + 1), type, parallel); }
 function stepMenu(x, y, onPick, opts = {}) {
   closeStepMenu();
   const m = document.createElement('div'); m.className = 'menu stepmenu'; m.style.position = 'fixed'; m.style.left = `${x + 8}px`; m.style.top = `${y + 8}px`; m.style.zIndex = 70;
-  const groups = ['Message', 'Wait', 'Split', 'Action']; let parallel = false;
-  m.innerHTML = (opts.allowParallel ? `<div class="seg mode" style="margin:4px 6px 6px"><button type="button" class="on" data-mode="seq" title="Insert on this connection">In sequence</button><button type="button" data-mode="par" title="Start a new branch from the same step; contacts take both">Parallel</button></div>` : '') + groups.map(g => `<div class="grp">${g}</div>${PALETTE.filter(p => p.grp === g).map(p => `<button data-type="${p.type}"><span class="ic" style="background:${TINT(p.type)};color:${INK(p.type)}">${icon(STEP_META[p.type].icon, 12)}</span>${p.label}</button>`).join('')}`).join('');
-  m.querySelectorAll('button[data-type]').forEach(b => b.onclick = ev => { ev.stopPropagation(); closeStepMenu(); onPick(b.dataset.type, parallel); });
-  m.querySelectorAll('button[data-mode]').forEach(b => b.onclick = ev => { ev.stopPropagation(); parallel = b.dataset.mode === 'par'; m.querySelectorAll('button[data-mode]').forEach(x => x.classList.toggle('on', x === b)); });
+  const groups = ['Message', 'Wait', 'Split', 'Action'];
+  m.innerHTML = (opts.title ? `<div class="grp" style="color:var(--brand-navy);font-weight:600;text-transform:none;letter-spacing:0;font-size:11.5px">${opts.title}</div>` : '') + groups.map(g => `<div class="grp">${g}</div>${PALETTE.filter(p => p.grp === g).map(p => `<button data-type="${p.type}"><span class="ic" style="background:${TINT(p.type)};color:${INK(p.type)}">${icon(STEP_META[p.type].icon, 12)}</span>${p.label}</button>`).join('')}`).join('');
+  m.querySelectorAll('button[data-type]').forEach(b => b.onclick = ev => { ev.stopPropagation(); closeStepMenu(); onPick(b.dataset.type); });
   document.body.appendChild(m);
   const r = m.getBoundingClientRect(); if (r.bottom > innerHeight) m.style.top = `${innerHeight - r.height - 8}px`; if (r.right > innerWidth) m.style.left = `${innerWidth - r.width - 8}px`;
   setTimeout(() => document.addEventListener('click', closeStepMenu), 0);
@@ -2068,7 +2081,7 @@ function handleAct(act, arg, el, e) {
     case 'select-step': app.selectedStepId = arg || null; renderEditor(); return;
     case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
     case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); } return;
-    case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, (type, par) => addAfter(s.id, arg, type, par), { allowParallel: canParallel(s) }); return;
+    case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, type => addAfter(s.id, arg, type)); return;
     case 'add-par': addParallel(v, s); relayout(v, j); touch(j); renderEditor(); toast('Parallel branch added', 'Add a step or an Exit on the new open path with “+”.'); return;
     case 'remove-par': { const edge = edgeOut(v, s.id, arg); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); relayout(v, j); touch(j); renderEditor(); return; }
     case 'copy-ph': navigator.clipboard?.writeText(arg).catch(() => {}); toast('Copied', `${arg} — paste it into content outside this prototype.`); return;
