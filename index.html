@@ -1,13 +1,1487 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Etiya CM · Journeys</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETIYA Marketing Cloud · Journeys</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='4' fill='%23F58220'/%3E%3Crect x='6' y='6' width='12' height='12' rx='1' fill='%23fff' opacity='.9'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================================
+   1. CSS copied from CM-New-UI-UX2 (index.html, v48): tokens, shell, components, journey
+   builder, monitor, toast, modal, footer, campaign stepper, visual pass. Same class names.
+   ===================================================================================== */
+/* Single-theme by design: Etiya commercial palette — navy primary, dark-orange accent, neutral greys. --green keeps its variable name for compatibility but now carries the navy primary; status greens live in --ok. */
+:root{
+  /* ---- Etiya brand kit ------------------------------------------------
+     Primary  Dark Blue & Lilac  #242441 / #5D5D8D
+     Secondary Orange            #F58220 / #F9AA56   — accent and tint only
+     Complimentary Turquoise     #00B5CB / #37DBDF   — action
+     Grey                        #DFE1DF / #EBECEB
+     Historical variable names are kept so the rest of the CSS keeps working;
+     only their values changed. See docs/brand.md. */
+  --brand-navy:#242441; --brand-lilac:#5D5D8D; --brand-lilac-line:#4E4E7A; --brand-nav-hover:#2E2E52;
+  /* Chrome surfaces (decision V7): the lilac as a translucent wash over the page instead of a
+     solid dark block, so the menu and the bars stop pulling the eye. Dark ink on all of them. */
+  --bar-bg:rgba(93,93,141,.14); --nav-bg:rgba(93,93,141,.08); --nav-hover:rgba(93,93,141,.12); --nav-active:rgba(93,93,141,.22); --chrome-line:rgba(93,93,141,.28);
+  --sec:#F58220; --sec-light:#F9AA56; --sec-ink:#9E560D; --sec-soft:#FDF0E2;
+  --cta:#00818F; --cta-hover:#00707E; --cta-bright:#00B5CB; --cta-light:#37DBDF; --cta-soft:#E2F6F8;
+  --grey-1:#DFE1DF; --grey-2:#EBECEB;
+
+  --bg:#F2F3F5; --surface:#FFFFFF; --surface-2:#F7F7F9; --ink:#242441; --ink-2:#4A4A60; --ink-3:#6B6B80;
+  --line:#DFE1DF; --line-2:#EBECEB;
+  --green:#242441; --green-ink:#1A1A33; --green-soft:#ECECF3; --grey-btn:#5A5A70; --dark-btn:#3F3F72;
+  --orange:#F58220; --orange-ink:#9E560D; --orange-soft:#FDF0E2;
+  --ok:#2A7230; --ok-soft:#E8F3E8; --warn:#9E560D; --warn-soft:#FDF0E2; --bad:#C62828; --bad-soft:#FBE9E9; --acc:#00818F; --acc-soft:#E2F6F8;
+  /* journey step tints — re-toned into the brand families, dark ink on each */
+  --t-entry:#E2F6F8; --t-entry-i:#00707E;
+  --t-delivery:#ECECF3; --t-delivery-i:#242441;
+  --t-timer:#FDF0E2; --t-timer-i:#9E560D;
+  --t-wait:#E6F4F1; --t-wait-i:#0F7566;
+  --t-cond:#E8E6F4; --t-cond-i:#4A4A8C;
+  --t-offer:#FBE6D2; --t-offer-i:#9E560D;
+  --t-par:#EBECEB; --t-par-i:#5A5A70;
+  --t-exit:#DFF2F5; --t-exit-i:#00707E;
+  --t-call:#E4E2F0; --t-call-i:#3F3F72;
+  --t-ext:#E9F3F5; --t-ext-i:#2A6B78;
+  --t-nbo:#DDF1EE; --t-nbo-i:#0B6B5E;
+  --mono:'IBM Plex Mono',ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:'Roboto',system-ui,-apple-system,Segoe UI,Helvetica,Arial,sans-serif;
+  --shadow:0 1px 3px rgba(36,36,65,.07),0 2px 10px rgba(36,36,65,.06);
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.43;color-scheme:light}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--cta-bright);outline-offset:1px;box-shadow:0 0 0 3px rgba(0,181,203,.35)}
+.app{display:grid;grid-template-columns:210px 1fr;grid-template-rows:56px 1fr auto;height:100vh;min-height:680px}
+/* top bar */
+.topbar{grid-column:1/-1;display:flex;align-items:center;gap:16px;padding:0 20px;background:var(--bar-bg);border-bottom:1px solid var(--chrome-line);color:var(--ink)}
+.logo{display:flex;align-items:center;gap:8px}
+.logo .mark{width:22px;height:22px;background:var(--sec);border-radius:3px;position:relative}
+.logo .mark::after{content:"";position:absolute;left:5px;top:5px;width:12px;height:12px;background:#fff;opacity:.9;border-radius:1px}
+.logo .w{display:flex;flex-direction:column;line-height:1}
+.logo .w b{font-size:15px;letter-spacing:.06em;color:var(--brand-navy);font-weight:500}
+.logo .w small{font-size:8.5px;letter-spacing:.08em;color:var(--ink-2);text-transform:uppercase}
+.burger{width:32px;height:32px;border:1px solid var(--chrome-line);border-radius:50%;background:none;display:grid;place-items:center;margin-left:8px}
+.burger i{display:block;width:14px;height:2px;background:var(--brand-navy);box-shadow:0 -4px 0 var(--brand-navy),0 4px 0 var(--brand-navy)}
+.tright{margin-left:auto;display:flex;align-items:center;gap:14px}
+.lang{display:flex;border:1px solid var(--chrome-line);border-radius:4px;overflow:hidden;color:var(--ink);background:var(--surface)}
+.lang span{padding:5px 10px;font-weight:600;font-size:12px}
+.lang span+span{border-left:1px solid var(--line);color:var(--ink-2)}
+.avatar{display:flex;align-items:center;gap:8px}
+.avatar .a{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#F9AA56,#F58220)}
+.avatar .n{display:flex;flex-direction:column;line-height:1.15}
+.avatar .n b{font-weight:600;font-size:12.5px}
+.avatar .n small{color:var(--ink-2);font-size:11px}
+.proto{display:flex;align-items:center;gap:8px}
+.topbar .pill{background:var(--surface);border-color:var(--chrome-line);color:var(--ink-2)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;border:1px solid var(--line);background:var(--surface-2);white-space:nowrap;color:var(--ink-2)}
+.pill.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.pill.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
+.pill.bad{background:var(--bad-soft);color:var(--bad);border-color:transparent}
+.pill.acc{background:var(--acc-soft);color:var(--cta-hover);border-color:transparent}
+/* nav */
+.nav{background:var(--nav-bg);border-right:1px solid var(--chrome-line);padding:14px 0;display:flex;flex-direction:column;gap:2px;overflow:auto}
+.nav .grp{font-size:11px;line-height:16px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);padding:12px 16px 6px}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;border-left:3px solid transparent;color:var(--ink);padding:8px 16px 8px 13px;font-size:13px}
+.nav button:hover{background:var(--nav-hover);color:var(--brand-navy)}
+.nav button.active{background:var(--nav-active);border-left-color:var(--sec);color:var(--brand-navy);font-weight:600}
+.nav button[disabled]{cursor:default}
+.nav button svg{width:15px;height:15px;stroke:var(--ink-2);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.nav button.new svg{stroke:var(--sec-ink)}
+.nav .foot{margin-top:auto;padding:12px 16px;font-size:11px;color:var(--ink-2);line-height:1.5}
+/* collapsible main menu: burger toggles; collapsed = icon rail with tooltips */
+.app{transition:grid-template-columns .15s}
+.app.nav-closed{grid-template-columns:60px 1fr}
+.app.nav-closed .nav{padding:10px 0}
+.app.nav-closed .nav .grp{height:1px;padding:0;margin:8px 14px;background:var(--chrome-line);overflow:hidden;font-size:0}
+.app.nav-closed .nav .grp:first-child{display:none}
+.app.nav-closed .nav button{justify-content:center;padding:10px 0 10px 0;border-left-width:3px;font-size:0;gap:0}
+.app.nav-closed .nav button svg{width:18px;height:18px;margin-left:-3px}
+.app.nav-closed .nav button.active svg{stroke:var(--brand-navy)}
+.app.nav-closed .nav .foot{display:none}
+.nav button .nl{white-space:nowrap}
+.burger.on{background:var(--nav-active);border-color:var(--brand-lilac)}
+/* main */
+.main{overflow:hidden;display:flex;flex-direction:column;min-width:0}
+.crumb{padding:12px 24px 0;font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-2)}
+.crumb b{color:var(--ink-3);font-weight:400;margin:0 6px}
+.view{display:none;flex:1;min-height:0;flex-direction:column;padding:12px 24px 16px;gap:12px}
+.view.active{display:flex}
+.card{background:var(--surface);border-radius:6px;box-shadow:var(--shadow)}
+.card-h{display:flex;align-items:center;gap:10px;padding:16px 20px 8px}
+.card-h h2{margin:0;font-size:18px;font-weight:400;color:var(--green);white-space:nowrap}
+.card-h p{margin:0;color:var(--ink-2);font-size:12.5px;flex-basis:100%}
+.card-h .grow{flex:1}
+.plus{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--green);color:var(--green);background:none;display:grid;place-items:center;font-size:18px;line-height:1}
+.btn{border:1px solid transparent;background:var(--surface-2);padding:7px 14px;border-radius:4px;font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;color:var(--ink)}
+.btn.primary{background:var(--cta);color:#fff}
+.btn.primary:hover{background:var(--cta-hover)}
+.btn.grey{background:var(--grey-btn);color:#fff}
+.btn.dark{background:var(--dark-btn);color:#fff}
+.btn.outline{background:none;border-color:var(--line)}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn[disabled]{opacity:.5;cursor:default}
+.tbl{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl th{background:var(--surface-2);text-align:left;font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;color:var(--ink)}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--line-2);vertical-align:middle}
+.tbl tr.row{cursor:pointer}
+.tbl tr.row:hover td{background:var(--surface-2)}
+.tbl tr.sel td{background:var(--cta-soft)}
+.tbl a,.lnk{color:var(--cta-hover);text-decoration:none;font-weight:500}
+.mono{font-family:var(--mono);font-size:11.5px}
+.num{font-variant-numeric:tabular-nums}
+.split{display:grid;grid-template-columns:1fr 340px;gap:12px;flex:1;min-height:0}
+.split > .left{overflow:auto;min-width:0;display:flex;flex-direction:column}
+.panel{overflow:auto;display:flex;flex-direction:column;min-width:0}
+.panel .ph{padding:16px 20px 6px;display:flex;align-items:center;gap:8px}
+.panel .ph h3{margin:0;font-size:17px;font-weight:400;color:var(--green)}
+.panel .ph .x{margin-left:auto}
+.panel .pb{padding:8px 20px 16px;display:flex;flex-direction:column;gap:12px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:12px;color:var(--ink-2)}
+.fld label.req::after,.h4 .req::after{content:" *";color:var(--bad)}
+.fld input,.fld select,.fld textarea{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:7px 10px;font-size:12.5px;width:100%}
+.fld input[readonly],.fld textarea[readonly]{background:var(--surface-2)}
+.fld textarea{min-height:64px;resize:vertical;font-family:var(--mono);font-size:11.5px}
+.fld .row{display:flex;gap:6px}
+.fld .row > *{flex:1}
+.sec{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:600;padding-top:8px;border-top:1px solid var(--line-2);margin-top:2px}
+.kv{display:grid;grid-template-columns:110px 1fr;gap:5px 10px;font-size:12.5px;margin:0}
+.kv dt{color:var(--ink-2)}
+.kv dd{margin:0}
+.chips{display:flex;flex-wrap:wrap;gap:4px}
+.chip{background:var(--surface-2);border:1px solid var(--line);border-radius:3px;padding:1px 7px;font-size:11.5px}
+.tag-path{display:flex;flex-wrap:wrap;align-items:center;gap:3px;font-size:12px}
+.tag-path .sep{color:var(--ink-3)}
+.note{background:var(--warn-soft);border-radius:4px;padding:8px 10px;font-size:12px;color:var(--sec-ink)}
+.empty{color:var(--ink-3);padding:24px;text-align:center}
+/* journey builder */
+.jb{display:grid;grid-template-columns:120px 1fr;flex:1;min-height:0;transition:grid-template-columns .15s}
+.jb.pal-closed{grid-template-columns:44px 1fr}
+.palette{border-right:1px solid var(--line);padding:12px 10px;display:flex;flex-direction:column;gap:8px;overflow:auto}
+.palette .pt{font-weight:600;font-size:13px;display:flex;align-items:center}
+.palette .pt .tog{margin-left:auto}
+.tog{width:26px;height:26px;border:1px solid var(--line);border-radius:6px;background:#fff;display:grid;place-items:center;color:var(--ink-2);padding:0}
+.tog i{display:block;width:12px;height:2px;background:currentColor;box-shadow:0 -4px 0 currentColor,0 4px 0 currentColor}
+.jb.pal-closed .palette{padding:10px 6px;align-items:center}
+.jb.pal-closed .palette .pt span,.jb.pal-closed .palette .ps{display:none}
+.jb.pal-closed .palette .pt .tog{margin:0}
+.jb.pal-closed .palette button:not(.tog){width:32px;height:32px;padding:0;justify-content:center;border-radius:6px}
+.jb.pal-closed .palette button:not(.tog) i{width:auto;height:auto;background:none;font-size:13px}
+.jb.pal-closed .palette button:not(.tog) span{display:none}
+.palette .ps{font-size:10.5px;color:var(--ink-3);margin-top:-6px;margin-bottom:4px}
+.palette button{display:flex;align-items:center;gap:7px;border:1px solid var(--c);background:var(--surface);color:var(--c);padding:8px 8px;border-radius:5px;text-align:left;font-size:11.5px;font-weight:600}
+.palette button:hover{background:var(--bg2)}
+.palette button:not(.tog) i{width:18px;height:18px;border-radius:50%;background:var(--bg2);display:grid;place-items:center;font-size:10px;font-style:normal;flex:none}
+.cright{display:flex;flex-direction:column;min-width:0}
+.ctool{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--line)}
+.ctool .ic{width:28px;height:28px;border:0;background:none;border-radius:4px;display:grid;place-items:center;color:var(--ink-2)}
+.ctool .ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.ctool .ic.on{border:1.5px solid var(--green);color:var(--green)}
+.ctool .grow{flex:1}
+.ctool.evbar{background:var(--surface-2);flex-wrap:wrap}
+.ctool.evbar select{border:1px solid var(--line);border-radius:4px;padding:5px 8px;background:#fff}
+.ctool .dir{display:flex;border-radius:4px;overflow:hidden}
+.ctool .dir button{border:0;background:var(--green);color:#fff;width:30px;height:28px;display:grid;place-items:center}
+.ctool .dir button+button{background:var(--brand-lilac)}
+.ctool .dir svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2}
+.canvas-wrap{position:relative;flex:1;overflow:hidden;background:var(--surface);min-height:420px;
+  background-image:linear-gradient(var(--line-2) 1px,transparent 1px),linear-gradient(90deg,var(--line-2) 1px,transparent 1px);background-size:24px 24px;cursor:grab;touch-action:none}
+.canvas-wrap.panning{cursor:grabbing}
+svg.canvas{display:block;width:100%;height:100%;user-select:none}
+.node rect.body{fill:#fff;stroke:var(--line);stroke-width:1;rx:6;filter:drop-shadow(0 2px 6px rgba(31,41,55,.08))}
+.node.sel rect.body{stroke:var(--cta-bright);stroke-width:2}
+.node.lit rect.body{stroke:var(--orange);stroke-width:3;filter:drop-shadow(0 0 8px rgba(242,107,29,.7))}
+.node.done rect.body{stroke:var(--brand-lilac);stroke-width:2}
+.node.cur rect.body{stroke:var(--sec);stroke-width:3;filter:drop-shadow(0 0 8px rgba(245,130,32,.55));animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.45}}
+.edge.taken path{stroke:var(--green);stroke-width:2.5;stroke-dasharray:none}
+.edge.taken rect{stroke:var(--green)}
+.node rect.head{rx:6}
+.node rect.head2{}
+.node text{font-family:var(--sans)}
+.node text.t{font-size:12px;font-weight:600}
+.node text.k{font-size:9.5px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+.node text.id{font-size:9px;fill:var(--ink-3);font-family:var(--mono)}
+.node text.lab{font-size:10px;fill:var(--ink-2)}
+.nsel{width:100%;height:100%}
+.nname{width:100%;height:100%}
+.nname input{width:100%;height:100%;border:1px solid transparent;border-radius:4px;background:transparent;font:600 12px var(--sans);color:var(--ink);padding:0 4px}
+.nname input:hover{border-color:var(--line);background:#fff}
+.nname input:focus{outline:none;border-color:var(--orange);background:#fff}
+.nsel select{width:100%;height:100%;border:1px solid var(--line);border-radius:4px;background:#fff;font:11px var(--sans);color:var(--ink);padding:0 6px;cursor:pointer}
+.nsel select:focus{outline:2px solid var(--orange);outline-offset:0}
+.node .badge circle{fill:var(--sec);stroke:#fff;stroke-width:2}
+.node .badge text{font-size:10px;fill:#fff;font-weight:700;font-family:var(--mono)}
+.node circle.port{fill:#fff;stroke:var(--ink-3);stroke-width:1.5}
+.node circle.port.out{fill:var(--orange);stroke:var(--orange)}
+.edge path{fill:none;stroke:#9B9BB0;stroke-width:1.5;stroke-dasharray:4 3}
+.edge text{font-size:10px;fill:var(--ink-2);font-family:var(--sans);font-weight:600}
+.edge rect{fill:#fff;stroke:var(--line)}
+.legend{position:absolute;right:12px;bottom:12px;font-size:11px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:4px;padding:5px 9px}
+/* monitor */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 20px 6px}
+.stat{background:var(--surface-2);border-radius:6px;padding:10px 12px}
+.stat .l{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:28px;margin-top:2px;color:var(--ink)}
+.stat .s{font-size:11.5px;color:var(--ink-2)}
+.funnel{display:flex;flex-direction:column;gap:6px;padding:0 20px 8px}
+.frow{display:grid;grid-template-columns:210px 1fr 50px;gap:10px;align-items:center;font-size:12.5px}
+.frow .bar{height:14px;background:var(--surface-2);border-radius:3px;overflow:hidden}
+.frow .bar i{display:block;height:100%}
+.frow .n{text-align:right;font-variant-numeric:tabular-nums}
+.toolrow{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:6px 20px 10px}
+.toolrow select{background:var(--surface);border:1px solid var(--line);border-radius:4px;padding:6px 10px}
+.toolrow input[type=range]{width:220px;accent-color:var(--cta)}
+.h4{font-size:13px;font-weight:600;color:var(--ink);padding:12px 20px 6px}
+.log{font-family:var(--mono);font-size:11.5px;background:var(--surface-2);border-radius:6px;padding:8px 10px;max-height:60vh;overflow:auto;display:flex;flex-direction:column;gap:3px}
+.log div{white-space:pre-wrap}
+.log .t{color:var(--ink-3)}
+.log .ok{color:var(--ok)} .log .warn{color:var(--warn)} .log .bad{color:var(--bad)} .log .acc{color:var(--acc)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:0 20px 16px}
+.padx{padding:0 20px 16px}
+#jsel{max-width:300px;text-overflow:ellipsis}
+.ctool{flex-wrap:wrap}
+#jtable td:first-child{white-space:nowrap}
+
+/* api */
+.api{display:grid;grid-template-columns:280px 1fr;gap:12px;flex:1;min-height:0;padding:0 20px 16px}
+.api .list{display:flex;flex-direction:column;gap:6px}
+.api .list button{text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:5px;padding:9px 11px;display:flex;flex-direction:column;gap:2px}
+.api .list button.active{border-color:var(--cta);background:var(--cta-soft)}
+.api .list .m{font-family:var(--mono);font-size:11px;color:var(--green-ink);font-weight:500}
+pre.code{margin:0;background:var(--brand-navy);color:#E6E6F0;border-radius:6px;padding:12px 14px;font-family:var(--mono);font-size:11.5px;overflow:auto;line-height:1.5}
+/* toast */
+.toast{position:fixed;right:24px;bottom:24px;z-index:60;display:flex;flex-direction:column;gap:8px}
+.toast div{background:#fff;border-left:4px solid var(--green);box-shadow:var(--shadow);border-radius:6px;padding:10px 14px;font-size:12.5px;max-width:420px;animation:tin .2s ease-out}
+.toast div.warn{border-left-color:var(--warn)} .toast div.bad{border-left-color:var(--bad)}
+.toast div b{display:block;font-size:13px;margin-bottom:2px}
+@keyframes tin{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* modal */
+.modal-bg{position:fixed;inset:0;background:rgba(31,41,55,.35);display:grid;place-items:center;z-index:40}
+.modal-bg[hidden]{display:none!important}
+.modal{width:min(1040px,94vw);max-height:90vh;display:flex;flex-direction:column;overflow:hidden}
+.modal .ph{padding:16px 20px 8px;display:flex;align-items:center;gap:10px}
+.modal .ph h3{margin:0;font-size:17px;font-weight:400;color:var(--green)}
+/* footer */
+.footer{grid-column:1/-1;display:flex;align-items:center;gap:20px;padding:10px 24px;background:var(--bar-bg);border-top:1px solid var(--chrome-line);font-size:11px;color:var(--ink-2)}
+.footer .c{flex:1;text-align:center;line-height:1.3}
+.footer .c small{color:var(--ink-2);display:block}
+@media (max-width:900px){
+  .app{grid-template-columns:1fr;grid-template-rows:56px auto 1fr auto}
+  .nav{flex-direction:row;flex-wrap:wrap;padding:6px 8px;border-right:0;border-bottom:1px solid var(--line)}
+  .nav .grp,.nav .foot{display:none}
+  .split,.jb,.api,.grid2{grid-template-columns:1fr}
+  .palette{border-right:0;border-bottom:1px solid var(--line);flex-direction:row;flex-wrap:wrap}
+  .frow{grid-template-columns:120px 1fr 44px}
+  .tright .avatar .n,.proto .pill:last-child{display:none}
+}
+@media (prefers-reduced-motion: reduce){*{transition:none!important;animation:none!important}}
+.chipbar{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fchip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:4px 11px;font-size:12px;color:var(--ink-2);cursor:pointer}
+.fchip.on{background:var(--orange-soft);border-color:var(--orange);color:var(--orange-ink);font-weight:600}
+.search-in{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;padding:6px 10px;background:#fff;min-width:240px;flex:1;max-width:380px}
+.search-in input{border:0;outline:0;flex:1;font-size:12.5px;background:none;min-width:0}
+.search-in svg{width:14px;height:14px;stroke:var(--ink-3);fill:none;stroke-width:1.8}
+.adv{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;padding:0 20px 12px}
+.stepper{display:flex;gap:4px;padding:8px 20px;border-bottom:1px solid var(--line-2);flex-wrap:wrap}
+.stepper button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:8px 14px;border-radius:6px;color:var(--ink-2);font-size:12.5px}
+.stepper button i{width:22px;height:22px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-style:normal;font-size:11px;flex:none}
+.stepper button.on{background:var(--sec-soft);color:var(--sec-ink);font-weight:600}
+.stepper button.on i{background:var(--orange);border-color:var(--orange);color:#fff}
+.stepper button.done i{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+/* connected stepper: colours follow readiness (decision C16), never visits alone */
+.stepper{flex-wrap:nowrap;align-items:center;gap:0}
+.stepper button{flex:none;white-space:nowrap}
+.stepper .sconn{flex:1 1 16px;min-width:6px;max-width:36px;height:2px;border-radius:1px;background:var(--line)}
+.stepper .sconn.ok{background:var(--ok)}
+.stepper button.done{color:var(--ok)}
+.stepper button.done i{background:var(--ok);border-color:var(--ok);color:#fff}
+.stepper button.todo i{position:relative;border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.stepper button.todo i::after{content:"";position:absolute;top:-3px;right:-3px;width:8px;height:8px;border-radius:50%;background:#F9AA56;box-shadow:0 0 0 1.5px #fff}
+.stepper button.on.done{color:var(--sec-ink)}
+.stepper button.on.done i{background:var(--orange);border-color:var(--orange);color:#fff}
+.stepper button.pend i{border-color:var(--warn);background:var(--warn-soft);color:var(--warn)}
+.stepper button.rej{color:var(--bad)}
+.stepper button.rej i{border-color:var(--bad);background:var(--bad-soft);color:var(--bad)}
+.stepper button.on.rej{color:var(--sec-ink)}
+/* required-but-empty marks: only after the step was left or a submit was tried */
+.fld.miss input,.fld.miss textarea,.fld.miss select{border-color:var(--bad)}
+.fld.miss::after{content:attr(data-miss);font-size:11.5px;color:var(--bad)}
+.miss:not(.fld){outline:2px solid var(--bad);outline-offset:2px;border-radius:8px}
+.miss-note{color:var(--bad);font-size:11.5px;padding:2px 20px 0}
+.flash{animation:flash 1.2s ease-out 1}
+@keyframes flash{0%{box-shadow:0 0 0 4px rgba(245,130,32,.55)}100%{box-shadow:0 0 0 4px rgba(245,130,32,0)}}
+.b4sub{margin:14px 20px 0;border:1px solid var(--line);border-left:3px solid var(--warn);border-radius:6px;padding:10px 14px;background:#fff}
+.b4sub.ok{border-left-color:var(--ok)}
+.b4sub h3{font-size:14px;margin:0 0 6px;display:flex;align-items:center;gap:8px}
+.b4sub ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.b4sub li{font-size:13px;color:var(--ink)}
+.b4sub a{color:var(--acc);cursor:pointer;text-decoration:underline}
+.b4sub small{color:var(--ink-2)}
+.stdrules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:0 20px}
+.stdrules div{border:1px solid var(--line-2);border-radius:6px;padding:8px 10px;background:var(--surface-2)}
+.stdrules b{display:block;font-size:12px;color:var(--ink-2);font-weight:500}
+.stdrules span{font-size:13px;color:var(--ink)}
+.stepper .spos{flex:none;padding-left:10px;font-size:11.5px;line-height:15px;color:var(--ink-3);text-align:right;white-space:nowrap}
+.form2{display:grid;grid-template-columns:1fr 1fr;gap:12px 20px;padding:8px 20px 16px}
+.form2 .span2{grid-column:1/-1}
+.switch{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:9px 0;border-bottom:1px solid var(--line-2)}
+.switch small{display:block;color:var(--ink-3);font-size:11px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{border:0;background:#fff;padding:5px 12px;font-size:12px;color:var(--ink-2)}
+.seg button.on{background:var(--green);color:#fff}
+.codebox{font-family:var(--mono);font-size:11.5px;background:var(--brand-navy);color:#E6E6F0;border-radius:8px;padding:14px;white-space:pre-wrap;max-height:440px;overflow:auto;width:100%;margin:0}
+.kpi{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.kpi b{color:var(--ink)}
+.typechip{display:inline-block;border-radius:3px;padding:1px 7px;font-size:11.5px;font-weight:600}
+.typechip.Offer{background:var(--t-offer);color:var(--t-offer-i)} .typechip.Information{background:var(--t-delivery);color:var(--t-delivery-i)} .typechip.Event{background:var(--t-wait);color:var(--t-wait-i)} .typechip.Survey{background:var(--t-cond);color:var(--t-cond-i)}
+.pager{display:flex;gap:4px;justify-content:center;padding:8px 20px 16px}
+.pager button{border:1px solid var(--line);background:#fff;border-radius:4px;width:28px;height:28px;font-size:12px;color:var(--ink-2)}
+.pager button.on{background:var(--orange);border-color:var(--orange);color:#fff}
+.lbl-chip{font-size:10.5px;background:var(--surface-2);border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--ink-2);margin-left:6px}
+.fld input[type=checkbox]{width:auto}
+.ck{display:flex;align-items:center;gap:8px;font-size:12.5px}
+.ck input{width:16px;height:16px;accent-color:var(--cta)}
+/* ---- UX/UI redesign round 1 (meeting 2026-09-16) ---- */
+.rolebox{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--ink-2)}
+.rolebox select{border:1px solid var(--chrome-line);border-radius:4px;padding:5px 8px;background:#fff;font-size:12px;font-weight:500;color:var(--ink)}
+.nav button[hidden],.nav .grp[hidden]{display:none!important}
+/* segmented tabs for generation method */
+.tabs{display:flex;border-bottom:1px solid var(--line);gap:2px}
+.tabs button{border:0;background:none;padding:8px 12px;font-size:12.5px;color:var(--ink-2);border-bottom:2px solid transparent;margin-bottom:-1px}
+.tabs button.on{color:var(--green-ink);border-bottom-color:var(--sec);font-weight:600}
+.navnew{margin-left:auto;background:var(--sec);color:var(--brand-navy);border-radius:999px;padding:0 6px;font-size:9.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.app.nav-closed .navnew{display:none}
+.pill.grey{background:var(--surface-2);color:var(--ink-3);border-color:transparent}
+/* ============ Visual pass (option A): stronger type scale, bordered boxes with tinted headers, two greys, 8pt spacing. Palette unchanged. ============ */
+/* v37's visual pass re-declared these; the brand kit owns them now, so this
+   block only keeps the tighter shadow. */
+:root{--shadow:0 1px 2px rgba(36,36,65,.07),0 4px 14px rgba(36,36,65,.08)}
+body{font-size:14px;line-height:1.43}
+.card{border:1px solid var(--line);border-radius:8px}
+.card-h{padding:18px 20px 10px;gap:12px}
+.card-h h2{font-size:22px;line-height:28px;font-weight:500;color:var(--green-ink)}
+.card-h p{font-size:14px;line-height:20px;color:var(--ink-2)}
+.panel .ph h3{font-size:16px;line-height:24px;font-weight:500;color:var(--green-ink)}
+.crumb{font-size:11.5px}
+.nav button{font-size:14px;line-height:20px;padding:9px 16px 9px 13px}
+.nav .grp{font-size:11px;color:var(--ink-2)}
+/* section headers: navy, sentence case, orange tick */
+.sec{font-size:16px;line-height:24px;font-weight:500;color:var(--green-ink);text-transform:none;letter-spacing:0;border-top:0;padding:12px 0 2px 11px;margin-top:4px;position:relative}
+.sec::before{content:"";position:absolute;left:0;top:14px;width:3px;height:14px;background:var(--orange);border-radius:2px}
+.h4{font-size:16px;line-height:24px;font-weight:500;color:var(--green-ink);padding:16px 20px 8px}
+/* form fields */
+.fld{gap:5px}
+.fld label{font-size:12px;line-height:16px;font-weight:500;color:var(--ink)}
+.fld label span,.fld label small{font-weight:400}
+.fld input,.fld select,.fld textarea{border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;font-size:14px;line-height:20px;min-height:36px;background:#fff}
+.fld textarea{min-height:72px}
+.fld input:focus,.fld select:focus,.fld textarea:focus{border-color:var(--cta-bright);outline:0;box-shadow:0 0 0 3px rgba(0,181,203,.35)}
+.fld input[readonly],.fld textarea[readonly]{background:var(--surface-2);color:var(--ink-2)}
+.fld input[type=checkbox],.ck input{min-height:0}
+.form2{gap:16px 24px;padding:12px 20px 20px}
+.pb{gap:14px}
+.ck{font-size:13px}
+.cnt{font-size:11px}
+/* tables */
+.tbl{font-size:14px;line-height:20px}
+.tbl th{background:var(--sec-soft);color:var(--sec-ink);font-size:12px;line-height:16px;font-weight:500;letter-spacing:.02em;text-transform:uppercase;padding:11px 12px;border-bottom:1px solid var(--line)}
+.tbl td{padding:11px 12px}
+.tbl tr.row:hover td{background:var(--surface-2)}
+/* boxes with a tinted header strip */
+.chart{padding:0 0 10px;overflow:hidden}
+.chart .ct{background:var(--sec-soft);color:var(--sec-ink);font-size:13px;padding:8px 12px;margin:0 0 10px}
+.chart .ct small{color:var(--ink-2)}
+.chart .hbar,.chart .stack,.chart .stack-l,.chart .cols{margin-left:12px;margin-right:12px}
+.tg .box{border-radius:8px;overflow:hidden}
+.tg .bh{background:var(--sec-soft);color:var(--sec-ink);font-size:13px;padding:9px 12px}
+.chgrp>div{padding:0 0 10px;overflow:hidden}
+.chgrp .gh{background:var(--sec-soft);color:var(--sec-ink);font-size:12.5px;font-weight:600;text-transform:none;letter-spacing:0;padding:7px 10px;margin:0 0 8px}
+.chgrp .chsel{padding:0 10px}
+.rp-panel{overflow:hidden}
+.rp-panel .ph{background:var(--sec-soft);color:var(--sec-ink);font-size:13px}
+.ready{border:1px solid var(--line);background:#fff;padding:0 0 10px;overflow:hidden;gap:8px}
+.ready .t{background:var(--sec-soft);color:var(--sec-ink);font-size:13px;padding:8px 12px}
+.ready .bar,.ready ul,.ready small{margin-left:12px;margin-right:12px}
+.ready li{font-size:12.5px}
+.apr .h4{background:var(--sec-soft);color:var(--sec-ink);border-radius:6px;padding:8px 12px!important;margin-bottom:10px}
+.ins .tile,.stat{background:#fff;border:1px solid var(--line-2);border-left:3px solid var(--sec)}
+.ins .tile .v,.stat .v{color:var(--green-ink)}
+.ins .tile .s,.stat .s{color:var(--ink-2)}
+/* steps, chips, pills */
+.stepper{padding:8px 14px}
+.stepper button{font-size:13px;line-height:18px;padding:6px 6px;gap:6px}
+.stepper button i{width:20px;height:20px}
+.stepper button.on{background:var(--sec-soft);color:var(--sec-ink)}
+.pill{font-size:11px;line-height:16px;font-weight:500}
+.chip{font-size:12px;line-height:16px;padding:2px 8px}
+.chsel button{font-size:12.5px;padding:4px 11px}
+.fchip{font-size:12.5px}
+.btn{font-size:14px;line-height:20px;font-weight:500;padding:8px 16px;border-radius:6px}
+.btn.sm{font-size:12px;line-height:16px;padding:6px 11px}
+.btn.outline{border-color:var(--line);color:var(--ink)}
+.hintline{font-size:12.5px}
+.note{font-size:12.5px;border-left:3px solid var(--warn)}
+.kpi{font-size:12.5px}
+.tabs button{font-size:14px;line-height:20px;padding:9px 14px}
+.subnav button{font-size:13px}
+.toolrow{gap:12px}
+.empty{font-size:13px}
+.kv{font-size:13px;gap:7px 12px}
+.kv dt{font-weight:600;color:var(--ink-2)}
+.tip{width:15px;height:15px;font-size:9.5px}
+#camp-table td:first-child{min-width:190px}
+.palette button{font-size:12px;padding:7px 8px}
+.palette .pt{font-size:13.5px}
+.palette .ps{font-size:11px}
+
+/* =====================================================================================
+   2. Journey MVP additions — styled from the same tokens, nothing new invented.
+   ===================================================================================== */
+.nav .sub{font-size:12px;color:var(--ink-3);padding:2px 16px 8px 42px;line-height:16px}
+.app.nav-closed .nav .sub{display:none}
+.crumb button{background:none;border:0;padding:0;color:var(--ink-2);font:inherit;letter-spacing:inherit;text-transform:inherit;cursor:pointer}
+.crumb button:hover{color:var(--cta-hover)}
+.crumb .cur{color:var(--ink);font-weight:600}
+.crumb .right{margin-left:auto;display:flex;gap:6px;align-items:center;text-transform:none;letter-spacing:0}
+.crumb{display:flex;align-items:center;gap:6px}
+.card-b{padding:8px 20px 16px}
+.row{display:flex;align-items:center;gap:8px}
+.col{display:flex;flex-direction:column;gap:8px}
+.wrap{flex-wrap:wrap}
+.grow{flex:1}
+.right{margin-left:auto}
+.muted{color:var(--ink-3)}
+.muted-2{color:var(--ink-2)}
+.small{font-size:12px;line-height:16px}
+.nowrap{white-space:nowrap}
+.pill.navy{background:var(--green-soft);color:var(--brand-navy);border-color:transparent}
+.pill.orange{background:var(--sec-soft);color:var(--sec-ink);border-color:transparent}
+.btn.danger{background:var(--bad-soft);color:var(--bad)}
+.btn.link{background:none;color:var(--cta-hover);padding:4px 6px}
+.btn.xs{font-size:11.5px;line-height:14px;padding:3px 8px;border-radius:4px}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tabs button .cnt{background:var(--surface-2);border:1px solid var(--line);border-radius:999px;padding:0 7px;font-size:11px;line-height:16px;font-weight:500;color:var(--ink-2);margin-left:6px}
+.tabs button.on .cnt{background:var(--sec-soft);color:var(--sec-ink);border-color:transparent}
+.tbl td .t1{font-weight:500;color:var(--green-ink)}
+.tbl td .t2{font-size:12px;color:var(--ink-3)}
+.tbl td .t2.clamp{max-width:230px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tbl td.r,.tbl th.r{text-align:right}
+.tbl td.nw{white-space:nowrap}
+.ic{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:4px;flex:none}
+.ic svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ic.email{background:#ececf3;color:#242441}
+.ic.sms{background:#e6f4f1;color:#0f7566}
+.ic.push{background:#fdf0e2;color:#9e560d}
+.chan-icons{display:inline-flex;gap:4px}
+.badge-ou{display:inline-flex;align-items:center;gap:4px;background:var(--bad-soft);color:var(--bad);border-radius:4px;padding:1px 6px;font-size:11px;font-weight:500;line-height:16px;white-space:nowrap}
+.inp{border:1.5px solid var(--line);border-radius:6px;padding:8px 10px;font-size:14px;line-height:20px;min-height:36px;background:#fff}
+.ck{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.ck input{width:15px;height:15px;margin:0;accent-color:var(--cta)}
+.ck small{color:var(--ink-3);display:block}
+.info{background:var(--acc-soft);border-left:3px solid var(--cta);border-radius:4px;padding:8px 10px;font-size:12.5px;color:var(--cta-hover);display:flex;gap:8px;align-items:flex-start}
+.info svg{width:14px;height:14px;flex:none;margin-top:2px;stroke:currentColor;fill:none;stroke-width:1.8}
+.menu{position:absolute;z-index:50;background:#fff;border:1px solid var(--line);border-radius:6px;box-shadow:var(--shadow);min-width:180px;padding:4px;display:flex;flex-direction:column}
+.menu button{border:0;background:none;text-align:left;padding:7px 10px;border-radius:4px;font-size:13px;display:flex;align-items:center;gap:8px;cursor:pointer}
+.menu button:hover{background:var(--surface-2)}
+.menu .grp{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);padding:6px 10px 2px}
+.pbar{height:6px;border-radius:3px;background:var(--grey-2);overflow:hidden;display:inline-block;vertical-align:middle}
+.pbar i{display:block;height:100%;background:var(--sec)}
+.stat.tile{background:#fff;border:1px solid var(--line-2);border-left:3px solid var(--sec)}
+.modal .pb{padding:8px 20px 16px;display:flex;flex-direction:column;gap:14px;overflow:auto;flex:1;min-height:0}
+.modal .mf{padding:12px 20px 16px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--line-2)}
+.modal.sm{width:min(560px,94vw)}
+.modal.md{width:min(820px,94vw)}
+.modal.xl{width:min(1240px,96vw);height:90vh}
+.x{width:28px;height:28px;border:0;background:none;border-radius:50%;display:grid;place-items:center;color:var(--ink-2);font-size:18px;line-height:1;cursor:pointer}
+.x:hover{background:var(--surface-2)}
+/* version bar */
+.vbar{display:flex;align-items:center;gap:10px;padding:10px 16px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.vbar select{border:1.5px solid var(--line);border-radius:6px;padding:6px 10px;background:#fff;font-weight:500;min-height:34px}
+.vbar .vmeta{font-size:12px;color:var(--ink-2);display:flex;flex-direction:column;line-height:1.3}
+.vbar .vmeta b{color:var(--ink);font-weight:500}
+.vbar .sp{width:1px;height:24px;background:var(--line)}
+.vbar .acts{margin-left:auto;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.lockbar{display:flex;align-items:center;gap:8px;padding:7px 16px;background:var(--sec-soft);color:var(--sec-ink);font-size:12.5px;border-bottom:1px solid var(--line)}
+.lockbar svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:1.8}
+.rejectbar{display:flex;align-items:center;gap:8px;padding:7px 16px;background:var(--bad-soft);color:var(--bad);font-size:12.5px;border-bottom:1px solid var(--line)}
+/* editor layout */
+.editor{display:flex;flex-direction:column;flex:1;min-height:0}
+.jb{grid-template-columns:150px 1fr}
+.jb.locked{grid-template-columns:1fr}
+.jb>*{min-height:0}
+.cright{display:flex;flex-direction:column;min-width:0;min-height:0}
+.palette .pg{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);margin-top:6px}
+.palette button:not(.tog){cursor:grab}
+.ctool .ic{width:auto;padding:0 8px;gap:5px;font-size:12px;border-radius:4px}
+.ctool .ic:hover{background:var(--surface-2);color:var(--brand-navy)}
+.ctool .dir button{width:auto;padding:0 10px;gap:5px;font-size:12px}
+.ctool .dir button.off{background:var(--grey-2);color:var(--ink-2)}
+.canvas-wrap{min-height:320px}
+.node{cursor:pointer}
+.node rect.body{stroke-width:1.5}
+.node.invalid rect.body{stroke:var(--bad);stroke-width:2}
+.node.hl rect.body{stroke:var(--sec);stroke-width:3;filter:drop-shadow(0 0 8px rgba(245,130,32,.45))}
+.node.st-added rect.body{stroke:var(--ok);stroke-width:2.5}
+.node.st-removed rect.body{stroke:var(--bad);stroke-width:2;stroke-dasharray:5 4;fill:var(--bad-soft)}
+.node.st-removed{opacity:.8}
+.node.st-changed rect.body{stroke:var(--warn);stroke-width:2.5}
+.node text.n{font-size:12px;font-weight:600;fill:var(--green-ink)}
+.node text.s{font-size:10.5px;fill:var(--ink-2)}
+.node text.stat{font-size:9.5px;fill:var(--ink-2)}
+.node text.stat tspan.v{font-weight:700;fill:var(--green-ink)}
+.node text.stat tspan.skip{fill:var(--bad)}
+.node rect.statbg{fill:var(--surface-2);stroke:var(--line-2)}
+.node .collapse{cursor:pointer}
+.node .collapse circle{fill:#fff;stroke:var(--line)}
+.node .collapse:hover circle{stroke:var(--brand-lilac)}
+.node .collapse path{stroke:var(--ink-2);fill:none;stroke-width:1.6;stroke-linecap:round}
+.node .dst{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.edge path{stroke-dasharray:none}
+.edge.dangling path{stroke:var(--bad);stroke-dasharray:5 4}
+.edge.hl path{stroke:var(--sec);stroke-width:2.6}
+.edge.st-added path{stroke:var(--ok);stroke-width:2.2}
+.edge.st-removed path{stroke:var(--bad);stroke-dasharray:6 4;stroke-width:2}
+.edge .es{fill:var(--sec-ink)}
+.eplus{cursor:pointer}
+.eplus circle{fill:#fff;stroke:var(--brand-lilac);stroke-width:1.5}
+.eplus path{stroke:var(--brand-navy);stroke-width:1.8;stroke-linecap:round}
+.eplus:hover circle,.eplus.hover circle{fill:var(--cta);stroke:var(--cta)}
+.eplus:hover path,.eplus.hover path{stroke:#fff}
+.canvas-wrap.dropping .eplus circle{r:17;stroke-dasharray:3 3;stroke:var(--cta-bright);fill:rgba(226,246,248,.9)}
+.endmark{fill:#fff;stroke:var(--bad);stroke-width:2;stroke-dasharray:3 3}
+.stub rect{fill:var(--green-soft);stroke:var(--brand-lilac);stroke-dasharray:4 3}
+.stub text{font-size:11px;fill:var(--brand-navy)}
+.stub{cursor:pointer}
+/* step panel */
+.jinfo .ph{padding:12px 16px 8px;border-bottom:1px solid var(--line-2)}
+.jinfo .ph h3{font-size:15px;line-height:22px;flex:1;min-width:0}
+.jinfo .pb{padding:12px 16px 16px;gap:12px}
+.jinfo .pb .fld input,.jinfo .pb .fld select,.jinfo .pb .fld textarea{font-size:13px;padding:7px 9px;min-height:34px}
+.jinfo .kind{font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.jinfo .ro{opacity:.75;pointer-events:none}
+.pathrow{display:flex;align-items:center;gap:6px}
+.pathrow .pl{width:76px;font-size:12px;color:var(--ink-2);flex:none}
+.pathrow select,.pathrow input{flex:1;min-width:0}
+.pathrow .x{width:24px;height:24px;font-size:16px}
+.pathrow .ord{display:flex;flex-direction:column}
+.pathrow .ord button{border:0;background:none;padding:0;height:11px;line-height:10px;font-size:10px;color:var(--ink-3);cursor:pointer}
+.pathrow .ord button:hover{color:var(--brand-navy)}
+.counter{font-size:11px;color:var(--ink-3);text-align:right}
+.counter.over{color:var(--bad)}
+.jinfo .stepper{padding:0 0 8px;border-bottom:1px solid var(--line);gap:4px}
+.jinfo .stepper button{flex:1;padding:6px 8px;font-size:12.5px;border:1px solid var(--line);border-radius:6px;justify-content:center;white-space:nowrap}
+.jinfo .stepper button i{width:18px;height:18px;font-size:10.5px}
+.chan-cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.chan-card{border:1.5px solid var(--line);background:#fff;border-radius:8px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12.5px;font-weight:500;color:var(--ink);cursor:pointer}
+.chan-card .ic{width:28px;height:28px}
+.chan-card .ic svg{width:16px;height:16px}
+.chan-card:hover{border-color:var(--brand-lilac)}
+.chan-card.on{border-color:var(--cta-bright);background:var(--cta-soft);box-shadow:0 0 0 3px rgba(0,181,203,.2)}
+.chan-card:disabled{cursor:default}
+.chan-card:disabled:not(.on){opacity:.55}
+.preview{border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.preview .pv-h{background:var(--sec-soft);color:var(--sec-ink);padding:7px 10px;display:flex;align-items:center;gap:8px;font-size:12.5px}
+.preview .pv-b{padding:10px 12px;font-size:12.5px;display:flex;flex-direction:column;gap:4px;background:var(--surface-2)}
+.preview .pv-b pre{margin:4px 0 0;white-space:pre-wrap;font:inherit}
+.preview .pv-b .muted{display:inline-block;min-width:72px}
+details summary{cursor:pointer}
+.chip.ph{font-family:var(--mono);font-size:11.5px;cursor:pointer;background:var(--cta-soft);border-color:transparent;color:var(--cta-hover)}
+.chip.ph:hover{background:#cdeff3}
+/* validation bar */
+.valbar{border-top:1px solid var(--line);padding:8px 16px;display:flex;gap:10px;align-items:center;font-size:12.5px;flex-wrap:wrap;background:var(--surface)}
+.valbar.bad{background:var(--bad-soft)}
+.valbar.ok{background:var(--ok-soft);color:var(--ok)}
+.valbar .vi{border:1px solid rgba(198,40,40,.35);background:#fff;color:var(--bad);border-radius:999px;padding:2px 10px;font-size:12px;display:inline-flex;gap:6px;align-items:center;cursor:pointer}
+.valbar .vi:hover{background:var(--bad);color:#fff}
+/* diff */
+.diff{display:grid;grid-template-columns:1fr 320px;flex:1;min-height:0;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.diff .side{border-left:1px solid var(--line);padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:10px;background:var(--surface-2)}
+.diff .de{font-size:12.5px;background:#fff;border:1px solid var(--line);border-left-width:3px;border-radius:4px;padding:6px 8px}
+.diff .de.added{border-left-color:var(--ok)}
+.diff .de.removed{border-left-color:var(--bad)}
+.diff .de.changed{border-left-color:var(--warn)}
+.diff .de b{display:block;font-weight:500}
+.legend2{display:flex;gap:12px;font-size:11.5px;color:var(--ink-2);align-items:center}
+.legend2 i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:4px;vertical-align:-2px;border:1.5px solid}
+.legend2 .added i{background:#f1f8f1;border-color:var(--ok)}
+.legend2 .removed i{background:var(--bad-soft);border-color:var(--bad)}
+.legend2 .changed i{background:var(--sec-soft);border-color:var(--warn)}
+/* monitor */
+.mon{display:flex;flex-direction:column;flex:1;min-height:0;gap:12px}
+.mon .canvas-wrap{border:1px solid var(--line);border-radius:6px}
+.timeline{display:flex;flex-direction:column}
+.tl{display:grid;grid-template-columns:120px 18px 1fr;gap:0 10px;font-size:12.5px}
+.tl .tt{color:var(--ink-3);font-size:11.5px;text-align:right;padding-top:2px;font-variant-numeric:tabular-nums}
+.tl .dot{position:relative}
+.tl .dot::before{content:"";position:absolute;left:7px;top:6px;width:8px;height:8px;border-radius:50%;background:var(--brand-lilac);border:2px solid #fff;box-shadow:0 0 0 1px var(--brand-lilac)}
+.tl .dot::after{content:"";position:absolute;left:10px;top:16px;bottom:-6px;width:2px;background:var(--line)}
+.tl:last-child .dot::after{display:none}
+.tl.k-sent .dot::before{background:var(--cta);box-shadow:0 0 0 1px var(--cta)}
+.tl.k-opened .dot::before,.tl.k-clicked .dot::before{background:var(--ok);box-shadow:0 0 0 1px var(--ok)}
+.tl.k-skipped .dot::before{background:var(--bad);box-shadow:0 0 0 1px var(--bad)}
+.tl.k-waited .dot::before,.tl.k-now .dot::before{background:var(--sec);box-shadow:0 0 0 1px var(--sec)}
+.tl.k-exited .dot::before,.tl.k-control .dot::before{background:var(--brand-navy);box-shadow:0 0 0 1px var(--brand-navy)}
+.tl .tb{padding-bottom:12px}
+.tl .tb small{display:block;color:var(--ink-3)}
+.drawer-bg{position:fixed;inset:0;background:rgba(31,41,55,.25);z-index:55}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(1080px,92vw);background:#fff;box-shadow:-8px 0 24px rgba(36,36,65,.18);z-index:56;display:flex;flex-direction:column;animation:tin .18s ease-out}
+.drawer .dh{padding:14px 20px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--line)}
+.drawer .dh h3{margin:0;font-size:17px;font-weight:500;color:var(--green-ink)}
+.drawer .db{flex:1;min-height:0;display:grid;grid-template-columns:380px 1fr}
+.drawer .dl{padding:14px 20px;overflow:auto;border-right:1px solid var(--line);display:flex;flex-direction:column;gap:14px}
+.drawer .dr{display:flex;flex-direction:column;min-height:0;padding:12px}
+.vhist{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.vhist div{display:grid;grid-template-columns:130px 1fr;gap:10px}
+.vhist span:first-child{color:var(--ink-3);font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="logo"><span class="mark"></span><span class="w"><b>ETIYA</b><small>Marketing Cloud</small></span></div>
+    <button class="burger" id="btn-nav" aria-label="Collapse or expand the menu" title="Collapse menu"><i></i></button>
+    <div class="proto"><span class="pill" title="Prototype — not a product version">Prototype</span><span class="pill" title="The journey layer only">Journey MVP</span></div>
+    <div class="tright">
+      <button class="btn sm outline manbtn" id="btn-reset" title="Reload the demo data: every change made in this session is discarded"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5.3M20 4v5h-5M20 12a8 8 0 0 1-14 5.3M4 20v-5h5"/></svg><span class="ml">Reset demo data</span></button>
+      <div class="rolebox" title="Role view — screens and actions follow the signed-in role">
+        <label for="role-sel">Role view</label>
+        <select id="role-sel">
+          <option value="marketer">Marketer</option>
+          <option value="approver">Approver</option>
+        </select>
+      </div>
+      <div class="lang"><span>EN</span><span>⌄</span></div>
+      <div class="avatar"><span class="a"></span><span class="n"><b id="me-name">Marie Tremblay</b><small id="role-lbl">Marketer</small></span></div>
+    </div>
+  </header>
+
+  <nav class="nav" aria-label="Pages">
+    <div class="grp" data-grp="journeys">Journeys</div>
+    <button data-view="journeys" data-roles="marketer approver" data-grp="journeys"><svg viewBox="0 0 24 24"><path d="M4 18c4 0 4-12 8-12s4 12 8 12"/><circle cx="4" cy="18" r="2"/><circle cx="20" cy="18" r="2"/></svg><span class="nl">Journeys</span></button>
+    <button data-view="monitor" data-roles="marketer approver" data-grp="journeys"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 17V9M11 17V5M16 17v-7M21 17v-4"/></svg><span class="nl">Journey Monitor</span></button>
+    <div class="sub" id="nav-sub" hidden></div>
+    <div class="foot" id="nav-foot">Event-triggered, per-customer journeys. Segment-based campaigns live in Campaign.</div>
+  </nav>
+
+  <main class="main">
+    <div class="crumb" id="crumb"></div>
+    <section class="view" id="view-journeys"></section>
+    <section class="view" id="view-editor"></section>
+    <section class="view" id="view-monitor"></section>
+  </main>
+
+  <footer class="footer"><div class="logo"><span class="mark"></span><span class="w"><b>ETIYA</b><small>Marketing Cloud</small></span></div><div class="c">2026 © ETIYA ALL RIGHTS RESERVED</div></footer>
+</div>
+
+<div class="modal-bg" id="modal" hidden><div class="card modal sm" id="modal-card" role="dialog" aria-modal="true"></div></div>
+<div class="modal-bg" id="modal2" hidden style="z-index:45"><div class="card modal sm" id="modal2-card" role="dialog" aria-modal="true"></div></div>
+<div id="drawer-host"></div>
+<div class="toast" id="toast" aria-live="polite"></div>
+
+<script>
+'use strict';
+/* =====================================================================================
+   DATA — mock constants. Everything is generated by a seeded RNG, so the numbers are the
+   same on every load; "Reset demo data" rebuilds it. Roadmap items are noted as [n].
+   ===================================================================================== */
+const NOW = new Date('2026-10-09T09:00:00Z');
+const MIN = 60000, HOUR = 60 * MIN, DAY = 24 * HOUR;
+const iso = ms => new Date(ms).toISOString();
+const daysAgo = (d, h = 10) => { const t = new Date(NOW); t.setUTCDate(t.getUTCDate() - d); t.setUTCHours(h, 0, 0, 0); return t.toISOString(); };
+
+function makeRng(seed) {
+  let a = seed >>> 0;
+  const next = () => { a += 0x6d2b79f5; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  return { next, int: (lo, hi) => lo + Math.floor(next() * (hi - lo + 1)), pick: arr => arr[Math.floor(next() * arr.length)], chance: p => next() < p };
+}
+function hash01(s) { let h = 2166136261; for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); } return (h >>> 0) / 4294967296; }
+
+/* [3] fixed event catalogue — no admin screen */
+const EVENTS = [
+  { id: 'order_abandoned', name: 'Order abandoned', description: 'A device order was started in the web shop and not completed.', payload: [
+    { name: 'device_name', type: 'string', sample: 'Pixel 9a 128 GB' }, { name: 'cart_url', type: 'url', sample: 'https://shop.example.com/cart/8f2a1' }, { name: 'price', type: 'number', sample: '649.00' }] },
+  { id: 'account_created', name: 'Account created', description: 'A new customer account was activated.', payload: [
+    { name: 'plan_name', type: 'string', sample: 'Mobile 20 GB' }, { name: 'activation_date', type: 'date', sample: '2026-10-08' }] },
+  { id: 'device_back_in_stock', name: 'Device back in stock', description: 'A device a contact asked to be notified about is available again.', payload: [
+    { name: 'device_name', type: 'string', sample: 'Galaxy S25 256 GB' }, { name: 'product_url', type: 'url', sample: 'https://shop.example.com/p/galaxy-s25' }] },
+  { id: 'payment_failed', name: 'Payment failed', description: 'A recurring payment was declined.', payload: [
+    { name: 'amount', type: 'number', sample: '42.50' }, { name: 'due_date', type: 'date', sample: '2026-10-15' }, { name: 'pay_url', type: 'url', sample: 'https://my.example.com/pay/7c31' }] },
+  { id: 'plan_changed', name: 'Plan changed', description: 'A customer moved to another plan.', payload: [
+    { name: 'old_plan', type: 'string', sample: 'Mobile 10 GB' }, { name: 'new_plan', type: 'string', sample: 'Mobile 40 GB' }] },
+];
+const eventById = id => EVENTS.find(e => e.id === id);
+const CONTACT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'plan', 'language'];
+const OFFER_FIELDS = ['offer_name', 'offer_code', 'offer_link'];
+
+/* dropdown-only lists — no pages */
+const SEGMENTS = [
+  { id: 'seg-lang-fr', name: 'Langue Français', description: 'Contact language = FR' },
+  { id: 'seg-lang-en', name: 'Langue English', description: 'Contact language = EN' },
+  { id: 'seg-fr-today', name: 'Français + account created today', description: 'Language FR and activation date = today' },
+  { id: 'seg-en-today', name: 'English + account created today', description: 'Language EN and activation date = today' },
+  { id: 'seg-account-today', name: 'Account created today', description: 'Activation date = today' },
+  { id: 'seg-high-value', name: 'High-value customers', description: 'Monthly spend above 60 $' },
+  { id: 'seg-prepaid', name: 'Prepaid plans', description: 'Any prepaid plan' },
+  { id: 'seg-multi-line', name: 'Multi-line accounts', description: 'Two or more lines on the account' },
+  { id: 'seg-recent-device', name: 'Bought a device in the last 90 days', description: 'Device order completed < 90 d' },
+];
+const segById = id => SEGMENTS.find(s => s.id === id);
+const OFFERS = [
+  { id: 'off-10-off', name: '10 $ off next device', code: 'DEV10', link: 'https://shop.example.com/offers/dev10' },
+  { id: 'off-free-month', name: 'One month free', code: 'FREE1M', link: 'https://my.example.com/offers/free1m' },
+  { id: 'off-5gb', name: '+5 GB for 3 months', code: 'PLUS5GB', link: 'https://my.example.com/offers/plus5gb' },
+  { id: 'off-roaming', name: 'Roaming pass 50 % off', code: 'ROAM50', link: 'https://my.example.com/offers/roam50' },
+];
+const offerById = id => OFFERS.find(o => o.id === id);
+const POLICIES = [
+  { id: 'pol-default', name: 'Default contact policy', summary: 'Max 3 marketing messages / 7 days, quiet hours 21:00–08:00' },
+  { id: 'pol-transactional', name: 'Transactional', summary: 'No frequency cap, no quiet hours' },
+  { id: 'pol-light', name: 'Light touch', summary: 'Max 1 marketing message / 7 days' },
+];
+const policyById = id => POLICIES.find(p => p.id === id);
+const USERS = { marketer: { id: 'u-marketer', name: 'Marie Tremblay', title: 'Campaign marketer' }, approver: { id: 'u-approver', name: 'Daniel Roy', title: 'Campaign approver' } };
+const userName = id => Object.values(USERS).find(u => u.id === id)?.name ?? id;
+const ROLE_NAMES = { marketer: 'Marketer', approver: 'Approver' };
+
+/* [4] ready-made content items: one channel, one language each; one default per channel.
+   Placeholders: contact fields, event payload fields, offer_name / offer_code / offer_link. */
+const em = (id, name, language, subject, preheader, body, isDefault = false) => ({ id, channel: 'email', name, language, isDefault, body: { subject, preheader, body } });
+const sm = (id, name, language, text, isDefault = false) => ({ id, channel: 'sms', name, language, isDefault, body: { text } });
+const pu = (id, name, language, title, text, link, isDefault = false) => ({ id, channel: 'push', name, language, isDefault, body: { title, text, link } });
+const CONTENT_ITEMS = [
+  em('c-generic-fr', 'Message générique', 'fr', 'Un message de votre fournisseur', 'Nouvelles de votre compte', 'Bonjour {{first_name}},\n\nNous avons une information pour vous concernant votre forfait {{plan}}.\n\nL’équipe', true),
+  em('c-generic-en', 'Generic message', 'en', 'A message from your provider', 'News about your account', 'Hi {{first_name}},\n\nWe have an update for you about your {{plan}} plan.\n\nThe team'),
+  em('c-cart-new-fr', 'Panier – nouveau client', 'fr', 'Bienvenue {{first_name}} – terminez votre première commande', '{{device_name}} vous attend', 'Bonjour {{first_name}},\n\nVotre {{device_name}} ({{price}} $) est toujours dans votre panier. Comme nouveau client, profitez de {{offer_name}} avec le code {{offer_code}}.\n\n{{cart_url}}'),
+  em('c-cart-new-en', 'Cart – new customer', 'en', 'Welcome {{first_name}} – finish your first order', '{{device_name}} is waiting', 'Hi {{first_name}},\n\nYour {{device_name}} ({{price}} $) is still in your cart. As a new customer, enjoy {{offer_name}} with code {{offer_code}}.\n\n{{cart_url}}'),
+  em('c-cart-fr', 'Abandon – reminder FR', 'fr', 'Votre panier vous attend – {{device_name}}', 'Encore disponible au même prix', 'Bonjour {{first_name}},\n\nVotre {{device_name}} à {{price}} $ est réservé pendant 24 h.\n\nReprendre ma commande : {{cart_url}}'),
+  em('c-cart-en', 'Abandon – reminder EN', 'en', 'Your cart is waiting – {{device_name}}', 'Still available at the same price', 'Hi {{first_name}},\n\nYour {{device_name}} at {{price}} $ is reserved for 24 h.\n\nResume my order: {{cart_url}}'),
+  em('c-cart-old-fr', 'Abandon – reminder FR (old template)', 'fr', 'Vous avez oublié quelque chose – {{device_name}}', 'Toujours en stock', 'Bonjour {{first_name}},\n\nVotre {{device_name}} est toujours disponible.\n\n{{cart_url}}'),
+  em('c-cart-old-en', 'Abandon – reminder EN (old template)', 'en', 'You left something behind – {{device_name}}', 'Still in stock', 'Hi {{first_name}},\n\nYour {{device_name}} is still available.\n\n{{cart_url}}'),
+  em('c-stock-fr', 'Retour en stock', 'fr', '{{device_name}} est de retour en stock', 'Les quantités sont limitées', 'Bonjour {{first_name}},\n\nBonne nouvelle : {{device_name}} est de nouveau disponible.\n\nCommander : {{product_url}}'),
+  em('c-stock-en', 'Back in stock', 'en', '{{device_name}} is back in stock', 'Quantities are limited', 'Hi {{first_name}},\n\nGood news: {{device_name}} is available again.\n\nOrder now: {{product_url}}'),
+  em('c-welcome-fr', 'Bienvenue', 'fr', 'Bienvenue chez nous, {{first_name}} !', 'Votre forfait {{plan_name}} est actif', 'Bonjour {{first_name}},\n\nVotre forfait {{plan_name}} est actif depuis le {{activation_date}}. Pour bien commencer : {{offer_name}}.\n\nActiver mon cadeau : {{offer_link}}'),
+  em('c-welcome-en', 'Welcome', 'en', 'Welcome aboard, {{first_name}}!', 'Your {{plan_name}} plan is active', 'Hi {{first_name}},\n\nYour {{plan_name}} plan has been active since {{activation_date}}. To get you started: {{offer_name}}.\n\nClaim my gift: {{offer_link}}'),
+  em('c-payment-fr', 'Rappel de paiement', 'fr', 'Rappel : paiement de {{amount}} $ en attente', 'Évitez l’interruption de service', 'Bonjour {{first_name}},\n\nNous n’avons pas pu encaisser {{amount}} $. Mettez à jour votre mode de paiement avant le {{due_date}}.\n\n{{pay_url}}'),
+  em('c-payment-en', 'Payment reminder', 'en', 'Reminder: {{amount}} $ payment pending', 'Avoid a service interruption', 'Hi {{first_name}},\n\nWe could not collect {{amount}} $. Update your payment method before {{due_date}}.\n\n{{pay_url}}'),
+  em('c-roaming-fr', 'Promo itinérance', 'fr', 'Cet été, voyagez avec votre forfait {{new_plan}}', '{{offer_name}}', 'Bonjour {{first_name}},\n\nAvec {{new_plan}}, profitez de {{offer_name}} jusqu’au 31 août. Code : {{offer_code}}\n\n{{offer_link}}'),
+  em('c-roaming-en', 'Roaming promo', 'en', 'This summer, travel with your {{new_plan}} plan', '{{offer_name}}', 'Hi {{first_name}},\n\nWith {{new_plan}}, enjoy {{offer_name}} until August 31. Code: {{offer_code}}\n\n{{offer_link}}'),
+  sm('s-generic-fr', 'SMS générique', 'fr', '{{first_name}}, un message de votre fournisseur concernant votre forfait {{plan}}.', true),
+  sm('s-generic-en', 'Generic SMS', 'en', '{{first_name}}, a message from your provider about your {{plan}} plan.'),
+  sm('s-stock-fr', 'Retour en stock – rappel', 'fr', '{{device_name}} est encore disponible – commandez avant la rupture : {{product_url}}'),
+  sm('s-stock-en', 'Back in stock – nudge', 'en', '{{device_name}} is still available – order before it sells out: {{product_url}}'),
+  sm('s-gift-fr', 'Cadeau de bienvenue', 'fr', '{{first_name}}, votre cadeau {{offer_name}} vous attend : {{offer_link}}'),
+  sm('s-gift-en', 'Welcome gift', 'en', '{{first_name}}, your gift {{offer_name}} is waiting: {{offer_link}}'),
+  sm('s-payment-fr', 'Paiement refusé', 'fr', 'Votre paiement de {{amount}} $ a été refusé. Réglez avant le {{due_date}} : {{pay_url}}'),
+  sm('s-payment-en', 'Payment failed', 'en', 'Your payment of {{amount}} $ was declined. Pay before {{due_date}}: {{pay_url}}'),
+  sm('s-roaming-fr', 'Promo itinérance', 'fr', '{{offer_name}} avec {{new_plan}} – jusqu’au 31 août. Code {{offer_code}}'),
+  sm('s-roaming-en', 'Roaming promo', 'en', '{{offer_name}} with {{new_plan}} – until August 31. Code {{offer_code}}'),
+  pu('p-generic-fr', 'Push générique', 'fr', 'Votre fournisseur', 'Une nouvelle information vous attend dans l’application.', 'https://app.example.com', true),
+  pu('p-generic-en', 'Generic push', 'en', 'Your provider', 'New information is waiting in the app.', 'https://app.example.com'),
+  pu('p-stock-fr', 'Retour en stock', 'fr', 'De retour en stock', '{{device_name}} est disponible', '{{product_url}}'),
+  pu('p-stock-en', 'Back in stock', 'en', 'Back in stock', '{{device_name}} is available', '{{product_url}}'),
+  pu('p-tips-fr', 'Astuces application', 'fr', 'Découvrez l’application', 'Gérez votre forfait {{plan_name}} en un clic', 'https://app.example.com/tips'),
+  pu('p-tips-en', 'App tips', 'en', 'Discover the app', 'Manage your {{plan_name}} plan in one tap', 'https://app.example.com/tips'),
+  pu('p-payment-fr', 'Dernier rappel de paiement', 'fr', 'Dernier rappel', 'Paiement de {{amount}} $ attendu avant le {{due_date}}', '{{pay_url}}'),
+  pu('p-payment-en', 'Last payment reminder', 'en', 'Last reminder', '{{amount}} $ payment due before {{due_date}}', '{{pay_url}}'),
+];
+const contentById = id => CONTENT_ITEMS.find(c => c.id === id);
+const contentsFor = ch => CONTENT_ITEMS.filter(c => c.channel === ch);
+const defaultContentFor = ch => CONTENT_ITEMS.find(c => c.channel === ch && c.isDefault);
+const CHANNELS = ['email', 'sms', 'push'];
+const CHANNEL_LABEL = { email: 'Email', sms: 'SMS', push: 'Push' };
+
+/* [2][7] contacts — generic names, masked ids, @example.com, +1 5XX */
+const FIRST_FR = ['Camille', 'Léa', 'Mathis', 'Émile', 'Chloé', 'Nathan', 'Florence', 'Olivier', 'Jade', 'Thomas', 'Rosalie', 'Antoine', 'Maude', 'Félix', 'Noémie', 'Gabriel'];
+const FIRST_EN = ['Emma', 'Liam', 'Olivia', 'Noah', 'Ava', 'Ethan', 'Sophia', 'Lucas', 'Mia', 'Logan', 'Grace', 'Owen', 'Hannah', 'Jack', 'Ella', 'Ryan'];
+const LAST = ['Tremblay', 'Gagnon', 'Roy', 'Côté', 'Bouchard', 'Gauthier', 'Morin', 'Lavoie', 'Fortin', 'Smith', 'Brown', 'Wilson', 'Taylor', 'Martin', 'Lee', 'Walker', 'Nguyen', 'Patel', 'Singh', 'Chen'];
+const PLANS = ['Mobile 10 GB', 'Mobile 20 GB', 'Mobile 40 GB', 'Home Internet 100', 'Mobile + Home bundle'];
+function generateContacts() {
+  const rng = makeRng(20261009); const out = [];
+  for (let i = 0; i < 420; i++) {
+    const kind = i < 320 ? 'Customers' : 'Prospects';
+    const language = rng.chance(0.58) ? 'fr' : 'en';
+    const firstName = rng.pick(language === 'fr' ? FIRST_FR : FIRST_EN), lastName = rng.pick(LAST);
+    const n = String(1000 + i * 7 % 9000).padStart(4, '0');
+    const id = (kind === 'Customers' ? 'CUS-****' : 'PRO-****') + n + (i >= 1286 ? i : '');
+    out.push({ id, kind, firstName, lastName,
+      email: `${firstName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}.${lastName.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')}${n}@example.com`,
+      phone: rng.chance(kind === 'Customers' ? 0.9 : 0.6) ? `+1 5${rng.int(1, 8)}${rng.int(0, 9)} 555 ${String(1000 + rng.int(0, 8999))}` : null,
+      pushToken: rng.chance(kind === 'Customers' ? 0.62 : 0.25) ? `tok_${n}${rng.int(100, 999)}` : null,
+      language, plan: kind === 'Customers' ? rng.pick(PLANS) : '—', unsubscribed: rng.chance(0.08) });
+  }
+  return out;
+}
+
+/* ---- journeys and versions: steps + edges (journeys are trees) ---------------------- */
+const M = 'u-marketer', A = 'u-approver';
+const S = {
+  event: (id, eventId, entryMode, createContact = true) => ({ id, type: 'event', name: 'Event entry', config: { eventId, entryMode, createContact } }),
+  delivery: (id, name, channel, contentId, extra = {}) => ({ id, type: 'delivery', name, config: { channel, contentId, offerId: null, policyId: 'pol-default', sendToUnsubscribed: false, ...extra } }),
+  wait: (id, amount, unit) => ({ id, type: 'wait', name: `Wait ${amount} ${unit}`, config: { amount, unit } }),
+  seg: (id, name, segments) => ({ id, type: 'segmentSplit', name, config: { segments } }),
+  eng: (id, name, deliveryStepId) => ({ id, type: 'engagementSplit', name, config: { deliveryStepId } }),
+  shuffle: (id, name, paths) => ({ id, type: 'shuffleSplit', name, config: { paths } }),
+  control: (id, name) => ({ id, type: 'controlGroup', name, config: { name } }),
+  exit: id => ({ id, type: 'exit', name: 'Exit', config: {} }),
+};
+const E = (from, to, label = '') => ({ from, to, label });
+const L = lang => lang === 'fr' ? 'FR' : 'EN';
+function version(id, journeyId, no, status, note, build, meta = {}) {
+  const { steps, edges } = build;
+  return { id, journeyId, no, status, note, createdBy: M, createdAt: daysAgo(30), history: [], steps, edges, ...meta };
+}
+
+/* 1. Device order abandonment — batch event; segment split Français + account today / Français /
+      English + account today / English / Remaining; one Delivery per path. */
+function abandonBuild(v) {
+  const p = `ab${v}`, steps = [], edges = [];
+  steps.push(S.event(`${p}-event`, 'order_abandoned', 'batch'), S.seg(`${p}-split`, 'Language and new account', ['seg-fr-today', 'seg-lang-fr', 'seg-en-today', 'seg-lang-en']), S.exit(`${p}-exit`));
+  edges.push(E(`${p}-event`, `${p}-split`));
+  for (const lang of ['fr', 'en']) {
+    const b = `${p}-${lang}`;
+    steps.push(S.delivery(`${b}-new`, `First order nudge ${L(lang)}`, 'email', `c-cart-new-${lang}`, { offerId: 'off-10-off' }), S.exit(`${b}-exit-a`));
+    edges.push(E(`${p}-split`, `${b}-new`, `seg-${lang}-today`), E(`${b}-new`, `${b}-exit-a`));
+    steps.push(S.wait(`${b}-wait`, 2, 'hours'), S.delivery(`${b}-email`, `Cart reminder ${L(lang)}`, 'email', v === 14 ? `c-cart-${lang}` : `c-cart-old-${lang}`), S.exit(`${b}-exit-b`));
+    edges.push(E(`${p}-split`, `${b}-wait`, `seg-lang-${lang}`), E(`${b}-wait`, `${b}-email`), E(`${b}-email`, `${b}-exit-b`));
+  }
+  steps.push(S.delivery(`${p}-rem`, 'Cart reminder (other)', 'email', 'c-generic-fr'), S.exit(`${p}-exit-r`));
+  edges.push(E(`${p}-split`, `${p}-rem`, 'Remaining'), E(`${p}-rem`, `${p}-exit-r`));
+  return { steps, edges };
+}
+/* 2. Device back in stock — single event, Prospects, override unsubscribe */
+function backStockBuild(v) {
+  const p = `bs${v}`, steps = [], edges = [];
+  steps.push(S.event(`${p}-event`, 'device_back_in_stock', 'single'), S.seg(`${p}-lang`, 'Language', ['seg-lang-fr', 'seg-lang-en']), S.exit(`${p}-exit`));
+  edges.push(E(`${p}-event`, `${p}-lang`), E(`${p}-lang`, `${p}-exit`, 'Remaining'));
+  for (const lang of ['fr', 'en']) {
+    const b = `${p}-${lang}`;
+    steps.push(S.delivery(`${b}-email`, `Back in stock ${L(lang)}`, 'email', `c-stock-${lang}`, { sendToUnsubscribed: true, policyId: 'pol-transactional' }));
+    edges.push(E(`${p}-lang`, `${b}-email`, `seg-lang-${lang}`));
+    if (v === 1) { steps.push(S.exit(`${b}-exit-a`)); edges.push(E(`${b}-email`, `${b}-exit-a`)); continue; }
+    steps.push(S.wait(`${b}-wait`, 1, 'days'), S.eng(`${b}-eng`, `Reacted to the email? (${L(lang)})`, `${b}-email`),
+      S.delivery(`${b}-sms`, `SMS nudge ${L(lang)}`, 'sms', `s-stock-${lang}`, { sendToUnsubscribed: true }), S.exit(`${b}-exit-a`),
+      S.delivery(`${b}-push`, `Push reminder ${L(lang)}`, 'push', `p-stock-${lang}`, { sendToUnsubscribed: true }), S.exit(`${b}-exit-b`), S.exit(`${b}-exit-c`));
+    edges.push(E(`${b}-email`, `${b}-wait`), E(`${b}-wait`, `${b}-eng`), E(`${b}-eng`, `${b}-sms`, 'Opened'), E(`${b}-sms`, `${b}-exit-a`), E(`${b}-eng`, `${b}-exit-c`, 'Clicked'), E(`${b}-eng`, `${b}-push`, 'Remaining'), E(`${b}-push`, `${b}-exit-b`));
+  }
+  return { steps, edges };
+}
+/* 3. Welcome — segment split FR / EN, shuffle 90/10 → control group, email with offer, wait 3 days,
+      engagement split → Push / SMS */
+function welcomeBuild(v) {
+  const p = `wl${v}`, steps = [], edges = [];
+  steps.push(S.event(`${p}-event`, 'account_created', 'single'), S.seg(`${p}-lang`, 'Language', ['seg-lang-fr', 'seg-lang-en']), S.exit(`${p}-exit`));
+  edges.push(E(`${p}-event`, `${p}-lang`), E(`${p}-lang`, `${p}-exit`, 'Remaining'));
+  for (const lang of ['fr', 'en']) {
+    const b = `${p}-${lang}`;
+    let head = `${b}-email`;
+    if (v === 2) {
+      steps.push(S.shuffle(`${b}-shuffle`, `Hold-out ${L(lang)}`, [{ label: 'Journey', pct: 90 }, { label: 'Control', pct: 10 }]), S.control(`${b}-control`, `Welcome control group ${L(lang)}`));
+      edges.push(E(`${p}-lang`, `${b}-shuffle`, `seg-lang-${lang}`), E(`${b}-shuffle`, `${b}-email`, 'Journey'), E(`${b}-shuffle`, `${b}-control`, 'Control'));
+      head = null;
+    }
+    if (head) edges.push(E(`${p}-lang`, head, `seg-lang-${lang}`));
+    steps.push(S.delivery(`${b}-email`, `Welcome email ${L(lang)}`, 'email', `c-welcome-${lang}`, { offerId: 'off-5gb' }), S.wait(`${b}-wait`, 3, 'days'),
+      S.eng(`${b}-eng`, `Opened the welcome email? (${L(lang)})`, `${b}-email`),
+      S.delivery(`${b}-push`, `Push – app tips ${L(lang)}`, 'push', `p-tips-${lang}`), S.exit(`${b}-exit-a`),
+      S.delivery(`${b}-sms`, `SMS – gift reminder ${L(lang)}`, 'sms', `s-gift-${lang}`, { offerId: 'off-5gb' }), S.exit(`${b}-exit-b`), S.exit(`${b}-exit-c`));
+    edges.push(E(`${b}-email`, `${b}-wait`), E(`${b}-wait`, `${b}-eng`), E(`${b}-eng`, `${b}-push`, 'Opened'), E(`${b}-push`, `${b}-exit-a`), E(`${b}-eng`, `${b}-sms`, 'Clicked'), E(`${b}-sms`, `${b}-exit-b`), E(`${b}-eng`, `${b}-exit-c`, 'Remaining'));
+  }
+  return { steps, edges };
+}
+/* 4. Payment failed — v3 = v2 + one Push step (FR path) and one wait changed (FR: 2 → 1 days) */
+function paymentBuild(v) {
+  const p = v === 1 ? 'pf1' : 'pf2'; // v3 keeps v2's step ids so View changes can match them
+  const steps = [], edges = [];
+  steps.push(S.event(`${p}-event`, 'payment_failed', 'single', false), S.seg(`${p}-lang`, 'Language', ['seg-lang-fr', 'seg-lang-en']), S.exit(`${p}-exit`));
+  edges.push(E(`${p}-event`, `${p}-lang`), E(`${p}-lang`, `${p}-exit`, 'Remaining'));
+  for (const lang of ['fr', 'en']) {
+    const b = `${p}-${lang}`;
+    steps.push(S.delivery(`${b}-sms`, `SMS – payment failed ${L(lang)}`, 'sms', `s-payment-${lang}`, { policyId: 'pol-transactional' }));
+    edges.push(E(`${p}-lang`, `${b}-sms`, `seg-lang-${lang}`));
+    if (v === 1) { steps.push(S.exit(`${b}-exit`)); edges.push(E(`${b}-sms`, `${b}-exit`)); continue; }
+    const waitDays = v === 3 && lang === 'fr' ? 1 : 2;
+    steps.push(S.wait(`${b}-wait`, waitDays, 'days'), S.delivery(`${b}-email`, `Email reminder ${L(lang)}`, 'email', `c-payment-${lang}`, { policyId: 'pol-transactional' }), S.exit(`${b}-exit`));
+    edges.push(E(`${b}-sms`, `${b}-wait`), E(`${b}-wait`, `${b}-email`));
+    if (v === 3 && lang === 'fr') { steps.push(S.delivery(`${b}-push`, 'Push – last reminder FR', 'push', 'p-payment-fr', { policyId: 'pol-transactional' })); edges.push(E(`${b}-email`, `${b}-push`), E(`${b}-push`, `${b}-exit`)); }
+    else edges.push(E(`${b}-email`, `${b}-exit`));
+  }
+  return { steps, edges };
+}
+/* 5. Plan change — draft with every validation error */
+function planChangeBuild() {
+  const steps = [S.event('pc-event', 'plan_changed', 'single'), S.seg('pc-split', 'Which customers?', [null]),
+    S.delivery('pc-email', 'Plan change confirmation', 'email', null), S.shuffle('pc-shuffle', 'A/B', [{ label: 'A', pct: 60 }, { label: 'B', pct: 30 }]), S.exit('pc-exit-a'),
+    S.eng('pc-eng', 'Engagement', null), S.exit('pc-exit-b')];
+  const edges = [E('pc-event', 'pc-split'), E('pc-split', 'pc-email', 'seg-1'), E('pc-split', 'pc-shuffle', 'Remaining'), E('pc-shuffle', 'pc-exit-a', 'A'), E('pc-shuffle', 'pc-eng', 'B'), E('pc-eng', 'pc-exit-b', 'Opened'), E('pc-eng', 'pc-exit-b', 'Remaining')];
+  return { steps, edges };
+}
+/* 6. Summer roaming promo — closed versions */
+function roamingBuild(v) {
+  const p = `rm${v}`, steps = [], edges = [];
+  steps.push(S.event(`${p}-event`, 'plan_changed', 'single'), S.seg(`${p}-lang`, 'Language', ['seg-lang-fr', 'seg-lang-en']), S.exit(`${p}-exit`));
+  edges.push(E(`${p}-event`, `${p}-lang`), E(`${p}-lang`, `${p}-exit`, 'Remaining'));
+  for (const lang of ['fr', 'en']) {
+    const b = `${p}-${lang}`;
+    steps.push(S.delivery(`${b}-email`, `Roaming promo email ${L(lang)}`, 'email', `c-roaming-${lang}`, { offerId: 'off-roaming' }), S.exit(`${b}-exit`));
+    edges.push(E(`${p}-lang`, `${b}-email`, `seg-lang-${lang}`));
+    if (v === 2) { steps.push(S.wait(`${b}-wait`, 1, 'days'), S.delivery(`${b}-sms`, `Roaming SMS ${L(lang)}`, 'sms', `s-roaming-${lang}`, { offerId: 'off-roaming' })); edges.push(E(`${b}-email`, `${b}-wait`), E(`${b}-wait`, `${b}-sms`), E(`${b}-sms`, `${b}-exit`)); }
+    else edges.push(E(`${b}-email`, `${b}-exit`));
+  }
+  return { steps, edges };
+}
+
+function seedJourneys() {
+  const h = (d, by, text, hh) => ({ at: daysAgo(d, hh), by, text });
+  const JOURNEYS = [
+    { id: 'j-abandon', name: 'Device order abandonment', description: 'Bring back customers who started a device order in the web shop and did not complete it.', eventId: 'order_abandoned', entryMode: 'batch', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(240), updatedAt: daysAgo(3, 14), updatedBy: M },
+    { id: 'j-backinstock', name: 'Device back in stock', description: 'Tell prospects who asked to be notified that a device is available again.', eventId: 'device_back_in_stock', entryMode: 'single', contactList: 'Prospects', overrideUnsubscribe: true, testUsers: [], orientation: 'LR', createdAt: daysAgo(120), updatedAt: daysAgo(21), updatedBy: M },
+    { id: 'j-welcome', name: 'Welcome – account created', description: 'Onboard new customers: welcome email with a gift, then a push or SMS depending on engagement.', eventId: 'account_created', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(150), updatedAt: daysAgo(12), updatedBy: A },
+    { id: 'j-payment', name: 'Payment failed – reminder', description: 'Remind customers whose recurring payment was declined, before service is interrupted.', eventId: 'payment_failed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(100), updatedAt: daysAgo(1, 16), updatedBy: M },
+    { id: 'j-planchange', name: 'Plan change – confirmation', description: 'Confirm a plan change and test two follow-up variants.', eventId: 'plan_changed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(2), updatedAt: daysAgo(0, 8), updatedBy: M },
+    { id: 'j-roaming', name: 'Summer roaming promo', description: 'Seasonal roaming offer for customers who changed plan during the summer.', eventId: 'plan_changed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(130), updatedAt: daysAgo(38), updatedBy: M },
+  ];
+  const VERSIONS = [
+    version('ab12', 'j-abandon', 12, 'closed', 'V12 – FR copy fix', abandonBuild(13), { createdAt: daysAgo(90), approvedAt: daysAgo(85), approvedBy: A, closedAt: daysAgo(38), history: [h(85, A, 'Approved and activated'), h(40, M, 'Stopped → Closing'), h(38, M, 'Closed')] }),
+    version('ab13', 'j-abandon', 13, 'closing', 'V13 – 2-hour wait', abandonBuild(13), { createdAt: daysAgo(45), submittedAt: daysAgo(42), submittedBy: M, approvedAt: daysAgo(40), approvedBy: A, history: [h(42, M, 'Submitted for approval'), h(40, A, 'Approved and activated'), h(3, A, 'Superseded by v14 → Closing', 14)] }),
+    version('ab14', 'j-abandon', 14, 'active', 'V14 – new template', abandonBuild(14), { createdAt: daysAgo(8), submittedAt: daysAgo(4), submittedBy: M, approvedAt: daysAgo(3, 14), approvedBy: A, history: [h(8, M, 'Copied from v13'), h(4, M, 'Submitted for approval'), h(3, A, 'Approved and activated', 14)] }),
+    version('bs1', 'j-backinstock', 1, 'closed', 'V1 – email only', backStockBuild(1), { createdAt: daysAgo(120), approvedAt: daysAgo(115), approvedBy: A, closedAt: daysAgo(60), history: [h(115, A, 'Approved and activated'), h(60, M, 'Closed')] }),
+    version('bs2', 'j-backinstock', 2, 'active', 'V2 – SMS and push follow-up', backStockBuild(2), { createdAt: daysAgo(70), submittedAt: daysAgo(64), submittedBy: M, approvedAt: daysAgo(60), approvedBy: A, history: [h(64, M, 'Submitted for approval'), h(60, A, 'Approved and activated'), h(21, M, 'Content changed by Marie Tremblay (Back in stock EN): Generic message → Back in stock')] }),
+    version('wl1', 'j-welcome', 1, 'closed', 'V1 – initial', welcomeBuild(1), { createdAt: daysAgo(150), approvedAt: daysAgo(140), approvedBy: A, closedAt: daysAgo(10), history: [h(140, A, 'Approved and activated'), h(12, A, 'Superseded by v2 → Closing'), h(10, M, 'Closed')] }),
+    version('wl2', 'j-welcome', 2, 'active', 'V2 – add control group', welcomeBuild(2), { createdAt: daysAgo(20), submittedAt: daysAgo(14), submittedBy: M, approvedAt: daysAgo(12), approvedBy: A, history: [h(20, M, 'Copied from v1'), h(14, M, 'Submitted for approval'), h(12, A, 'Approved and activated')] }),
+    version('pf1', 'j-payment', 1, 'closed', 'V1 – SMS only', paymentBuild(1), { createdAt: daysAgo(100), approvedAt: daysAgo(95), approvedBy: A, closedAt: daysAgo(50), history: [h(95, A, 'Approved and activated'), h(50, M, 'Closed')] }),
+    version('pf2', 'j-payment', 2, 'active', 'V2 – email after 2 days', paymentBuild(2), { createdAt: daysAgo(60), submittedAt: daysAgo(56), submittedBy: M, approvedAt: daysAgo(52), approvedBy: A, history: [h(56, M, 'Submitted for approval'), h(52, A, 'Approved and activated')] }),
+    version('pf3', 'j-payment', 3, 'pending', 'V3 – push reminder, shorter wait', paymentBuild(3), { createdAt: daysAgo(5), submittedAt: daysAgo(1, 16), submittedBy: M, history: [h(5, M, 'Copied from v2'), h(1, M, 'Submitted for approval: “Adds a last push reminder on the FR path and shortens the FR wait to 1 day.”', 16)] }),
+    version('pc1', 'j-planchange', 1, 'draft', '', planChangeBuild(), { createdAt: daysAgo(2), history: [h(2, M, 'Created')] }),
+    version('rm1', 'j-roaming', 1, 'closed', 'V1 – email', roamingBuild(1), { createdAt: daysAgo(130), approvedAt: daysAgo(125), approvedBy: A, closedAt: daysAgo(95), history: [h(125, A, 'Approved and activated'), h(95, M, 'Closed')] }),
+    version('rm2', 'j-roaming', 2, 'closed', 'V2 – SMS follow-up', roamingBuild(2), { createdAt: daysAgo(100), approvedAt: daysAgo(95), approvedBy: A, closedAt: daysAgo(38), history: [h(95, A, 'Approved and activated'), h(40, M, 'Stopped → Closing'), h(38, M, 'Closed')] }),
+  ];
+  return { JOURNEYS, VERSIONS };
+}
+/* how many contacts each version received, over which window (days ago) */
+const ENROLMENT = { ab12: [70, 85, 40], ab13: [85, 40, 3], ab14: [110, 3, 0], bs1: [40, 115, 60], bs2: [95, 60, 0], wl1: [90, 140, 12], wl2: [120, 12, 0], pf1: [30, 95, 52], pf2: [75, 52, 0], rm1: [60, 125, 95], rm2: [90, 95, 40] };
+
+/* [2][6] simulate: walk contacts through a version and write their event log. Every Monitor
+   number is derived from CONTACT_STATES, so step counts add up across splits by construction. */
+function simulateVersion(journey, v, contacts) {
+  const plan = ENROLMENT[v.id]; if (!plan) return [];
+  const [count, from, to] = plan;
+  const rng = makeRng(hash01(v.id) * 1e9);
+  const pool = contacts.filter(c => c.kind === journey.contactList);
+  const entry = v.steps.find(s => s.type === 'event'); if (!entry) return [];
+  const stepOf = id => v.steps.find(s => s.id === id);
+  const nextOf = (id, label) => v.edges.find(e => e.from === id && (label === undefined || e.label === label))?.to ?? null;
+  const now = NOW.getTime(), out = [];
+  for (let i = 0; i < count; i++) {
+    const contact = pool[(Math.floor(hash01(v.id + i) * pool.length) + i * 7) % pool.length];
+    const recent = to === 0 && rng.chance(0.04);
+    let t = recent ? now - rng.int(1, 4) * MIN : now - to * DAY - rng.next() * (from - to) * DAY;
+    const receivedAt = iso(t);
+    const history = []; let cur = entry, status = 'Exited', lastDelivery = '—', lastSkipped = false;
+    const push = (stepId, event, detail, extra = {}) => history.push({ stepId, event, at: iso(t), detail, ...extra });
+    walk: while (cur) {
+      push(cur.id, 'entered', `Entered “${cur.name}”`);
+      let label = '';
+      switch (cur.type) {
+        case 'event': t += rng.int(5, 55) * 1000; break;
+        case 'delivery': {
+          const d = cur.config, item = contentById(d.contentId), offer = offerById(d.offerId);
+          t += rng.int(1, 3) * MIN;
+          if (t > now) { status = 'In step'; lastDelivery = 'Sending…'; break walk; }
+          const unreachable = (d.channel === 'sms' && !contact.phone) || (d.channel === 'push' && !contact.pushToken);
+          const unsub = contact.unsubscribed && !(journey.overrideUnsubscribe && d.sendToUnsubscribed);
+          if (unreachable) { push(cur.id, 'skipped', d.channel === 'sms' ? 'Skipped – no phone number' : 'Skipped – no push token'); lastDelivery = `Skipped · ${d.channel === 'sms' ? 'no phone' : 'no push token'}`; lastSkipped = true; break; }
+          if (unsub) { push(cur.id, 'skipped', 'Skipped – unsubscribed'); lastDelivery = 'Skipped · unsubscribed'; lastSkipped = true; break; }
+          lastSkipped = false;
+          push(cur.id, 'sent', `Sent · ${CHANNEL_LABEL[d.channel]} · ${item ? `${item.name} (${item.language.toUpperCase()})` : 'no content'}${offer ? ` · offer ${offer.code}` : ''}`);
+          lastDelivery = `Delivered · ${CHANNEL_LABEL[d.channel]}`;
+          const openP = d.channel === 'email' ? 0.46 : d.channel === 'push' ? 0.34 : 0, clickP = d.channel === 'email' ? 0.38 : d.channel === 'push' ? 0.45 : 0.14;
+          const openAt = t + rng.int(5, 36 * 60) * MIN;
+          if (d.channel !== 'sms' && openAt <= now && hash01('o' + cur.id + contact.id) < openP) {
+            history.push({ stepId: cur.id, event: 'opened', at: iso(openAt), detail: 'Opened' }); lastDelivery = 'Opened';
+            const clickAt = openAt + rng.int(1, 120) * MIN;
+            if (clickAt <= now && hash01('c' + cur.id + contact.id) < clickP) { history.push({ stepId: cur.id, event: 'clicked', at: iso(clickAt), detail: offer ? `Clicked · attributed to ${offer.code}` : 'Clicked' }); lastDelivery = 'Clicked'; }
+          } else if (d.channel === 'sms') {
+            const clickAt = t + rng.int(2, 600) * MIN;
+            if (clickAt <= now && hash01('c' + cur.id + contact.id) < clickP) { history.push({ stepId: cur.id, event: 'clicked', at: iso(clickAt), detail: offer ? `Clicked the link · attributed to ${offer.code}` : 'Clicked the link' }); lastDelivery = 'Clicked'; }
+          }
+          break;
+        }
+        case 'wait': {
+          const ms = cur.config.amount * (cur.config.unit === 'hours' ? HOUR : DAY);
+          if (t + ms > now) { status = 'Waiting'; break walk; }
+          t += ms; push(cur.id, 'waited', `Waited ${cur.config.amount} ${cur.config.unit}`); break;
+        }
+        case 'segmentSplit': {
+          const hit = cur.config.segments.find(sid => {
+            if (!sid) return false;
+            if (sid === 'seg-lang-fr') return contact.language === 'fr';
+            if (sid === 'seg-lang-en') return contact.language === 'en';
+            const today = hash01('today' + contact.id) < 0.22;
+            if (sid === 'seg-fr-today') return contact.language === 'fr' && today;
+            if (sid === 'seg-en-today') return contact.language === 'en' && today;
+            if (sid === 'seg-account-today') return today;
+            return hash01(sid + contact.id) < 0.35;
+          });
+          label = hit ?? 'Remaining';
+          push(cur.id, 'split', `Path: ${hit ? segById(hit)?.name ?? hit : 'Remaining'}`, { label }); break;
+        }
+        case 'engagementSplit': {
+          const kinds = new Set(history.filter(l => l.stepId === cur.config.deliveryStepId).map(l => l.event));
+          label = kinds.has('clicked') ? 'Clicked' : kinds.has('opened') ? 'Opened' : 'Remaining';
+          push(cur.id, 'split', `Path: ${label}`, { label }); break;
+        }
+        case 'shuffleSplit': {
+          const r = hash01('sh' + cur.id + contact.id) * 100; let acc = 0, chosen = cur.config.paths[cur.config.paths.length - 1];
+          for (const p of cur.config.paths) { acc += p.pct; if (r < acc) { chosen = p; break; } }
+          label = chosen.label; push(cur.id, 'split', `Path: ${chosen.label} (${chosen.pct} %)`, { label }); break;
+        }
+        case 'controlGroup': push(cur.id, 'control', `Kept for comparison in “${cur.config.name}”`); status = 'Control group'; break walk;
+        case 'exit': push(cur.id, 'exited', 'Exited the journey'); status = lastSkipped ? 'Skipped' : 'Exited'; break walk;
+      }
+      const nextId = nextOf(cur.id, cur.type === 'segmentSplit' || cur.type === 'engagementSplit' || cur.type === 'shuffleSplit' ? label : undefined);
+      if (!nextId) { push(cur.id, 'exited', 'Path ended'); status = 'Exited'; break; }
+      cur = stepOf(nextId);
+    }
+    out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
+  }
+  return out;
+}
+function samplePayload(eventId, rng) {
+  const out = {};
+  for (const f of eventById(eventId)?.payload ?? []) {
+    let v = f.sample;
+    if (f.name === 'device_name') v = rng.pick(['Pixel 9a 128 GB', 'Galaxy S25 256 GB', 'iPhone 16 128 GB', 'Moto G 2026', 'Galaxy A36']);
+    if (f.name === 'price') v = rng.pick(['349.00', '649.00', '899.00', '1 099.00']);
+    if (f.name === 'amount') v = rng.pick(['29.95', '42.50', '55.00', '78.20']);
+    if (f.name === 'plan_name' || f.name === 'new_plan') v = rng.pick(['Mobile 10 GB', 'Mobile 20 GB', 'Mobile 40 GB', 'Mobile + Home bundle']);
+    if (f.name === 'old_plan') v = rng.pick(['Mobile 5 GB', 'Mobile 10 GB', 'Mobile 20 GB']);
+    out[f.name] = v;
+  }
+  return out;
+}
+
+/* the live demo world; resetDemo() rebuilds it */
+let CONTACTS = [], JOURNEYS = [], VERSIONS = [], CONTACT_STATES = [];
+function resetDemo() {
+  CONTACTS = generateContacts();
+  const w = seedJourneys(); JOURNEYS = w.JOURNEYS; VERSIONS = w.VERSIONS;
+  // test users: first contacts of each list
+  for (const j of JOURNEYS) j.testUsers = CONTACTS.filter(c => c.kind === j.contactList).slice(0, 3).map(c => c.id);
+  CONTACT_STATES = [];
+  for (const j of JOURNEYS) for (const v of VERSIONS.filter(v => v.journeyId === j.id)) CONTACT_STATES.push(...simulateVersion(j, v, CONTACTS));
+}
+resetDemo();
+
+/* =====================================================================================
+   DOMAIN — pure functions, no DOM.
+   ===================================================================================== */
+const STEP_META = {
+  event: { k: 'Event', tint: 'entry', icon: 'event' },
+  delivery: { k: 'Delivery', tint: 'delivery', icon: 'send' },
+  wait: { k: 'Wait', tint: 'timer', icon: 'wait' },
+  segmentSplit: { k: 'Segment split', tint: 'cond', icon: 'segment' },
+  engagementSplit: { k: 'Engagement split', tint: 'cond', icon: 'engagement' },
+  shuffleSplit: { k: 'Shuffle split', tint: 'par', icon: 'shuffle' },
+  controlGroup: { k: 'Control group', tint: 'wait', icon: 'control' },
+  exit: { k: 'Exit', tint: 'exit', icon: 'exit' },
+};
+/* palette: Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle · Action: Control group, Exit */
+const PALETTE = [
+  { grp: 'Entry', type: 'event', label: 'Event' }, { grp: 'Message', type: 'delivery', label: 'Delivery' }, { grp: 'Wait', type: 'wait', label: 'Duration' },
+  { grp: 'Split', type: 'segmentSplit', label: 'Segment' }, { grp: 'Split', type: 'engagementSplit', label: 'Engagement' }, { grp: 'Split', type: 'shuffleSplit', label: 'Shuffle' },
+  { grp: 'Action', type: 'controlGroup', label: 'Control group' }, { grp: 'Action', type: 'exit', label: 'Exit' },
+];
+let idSeq = 1000;
+const uid = p => `${p}-${(idSeq++).toString(36)}`;
+
+function newStep(type) {
+  switch (type) {
+    case 'event': return S.event(uid('s'), EVENTS[0].id, 'single');
+    case 'delivery': return S.delivery(uid('s'), 'Delivery', 'email', defaultContentFor('email')?.id ?? null);
+    case 'wait': return S.wait(uid('s'), 1, 'days');
+    case 'segmentSplit': return S.seg(uid('s'), 'Segment split', [null]);
+    case 'engagementSplit': return S.eng(uid('s'), 'Engagement split', null);
+    case 'shuffleSplit': return S.shuffle(uid('s'), 'Shuffle split', [{ label: 'A', pct: 50 }, { label: 'B', pct: 50 }]);
+    case 'controlGroup': return S.control(uid('s'), 'Control group');
+    case 'exit': return S.exit(uid('s'));
+  }
+}
+/* the paths that leave a step: key = edge label, label = what the canvas shows */
+function outletsOf(step) {
+  switch (step.type) {
+    case 'event': case 'delivery': case 'wait': return [{ key: '', label: '' }];
+    case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}` })), { key: 'Remaining', label: 'Remaining' }];
+    case 'engagementSplit': return [{ key: 'Opened', label: 'Opened' }, { key: 'Clicked', label: 'Clicked' }, { key: 'Remaining', label: 'Remaining' }];
+    case 'shuffleSplit': return step.config.paths.map(p => ({ key: p.label, label: `${p.label} · ${p.pct} %` }));
+    default: return [];
+  }
+}
+const isSplit = s => s.type === 'segmentSplit' || s.type === 'engagementSplit' || s.type === 'shuffleSplit';
+const stepOf = (v, id) => v.steps.find(s => s.id === id);
+const entryOf = v => v.steps.find(s => s.type === 'event');
+const edgeOut = (v, id, key) => v.edges.find(e => e.from === id && e.label === key);
+const parentEdge = (v, id) => v.edges.find(e => e.to === id);
+function descendants(v, id, acc = new Set()) { for (const e of v.edges.filter(e => e.from === id)) if (!acc.has(e.to)) { acc.add(e.to); descendants(v, e.to, acc); } return acc; }
+function reachable(v) { const en = entryOf(v); if (!en) return []; const ids = [en.id, ...descendants(v, en.id)]; return ids.map(i => stepOf(v, i)).filter(Boolean); }
+/* earlier Deliveries on the path (for the engagement split) */
+function deliveriesBefore(v, id) { const out = []; let e = parentEdge(v, id); const seen = new Set(); while (e && !seen.has(e.from)) { seen.add(e.from); const s = stepOf(v, e.from); if (s?.type === 'delivery') out.unshift(s); e = parentEdge(v, e.from); } return out; }
+/* insert a step on a connection: the new step's first path takes over the old target */
+function insertOnEdge(v, edge, step) {
+  const oldTo = edge.to; edge.to = step.id; v.steps.push(step);
+  const outs = outletsOf(step);
+  if (outs.length) v.edges.push(E(step.id, oldTo, outs[0].key));
+  else { // a terminal placed on a connection drops the old continuation
+    const drop = new Set([oldTo, ...descendants(v, oldTo)]);
+    v.steps = v.steps.filter(s => !drop.has(s.id)); v.edges = v.edges.filter(e => !drop.has(e.from) && !drop.has(e.to));
+  }
+}
+/* remove a step: single-outlet steps are spliced out; a split keeps its first path; terminals leave the connection open */
+function removeStep(v, id) {
+  const step = stepOf(v, id); if (!step || step.type === 'event') return;
+  const pe = parentEdge(v, id), outs = outletsOf(step);
+  const keep = outs.length ? edgeOut(v, id, outs[0].key)?.to ?? null : null;
+  const drop = new Set([id]);
+  for (const o of outs.slice(1)) { const to = edgeOut(v, id, o.key)?.to; if (to) { drop.add(to); for (const d of descendants(v, to)) drop.add(d); } }
+  v.steps = v.steps.filter(s => !drop.has(s.id));
+  v.edges = v.edges.filter(e => !drop.has(e.from) && !drop.has(e.to));
+  if (pe) { if (keep) pe.to = keep; else v.edges = v.edges.filter(e => e !== pe); }
+}
+/* keep edges in sync when a split's paths change (renamed / removed outlets) */
+function syncEdges(v, step) {
+  const keys = new Set(outletsOf(step).map(o => o.key));
+  const gone = v.edges.filter(e => e.from === step.id && !keys.has(e.label));
+  for (const e of gone) { const drop = new Set([e.to, ...descendants(v, e.to)]); v.steps = v.steps.filter(s => !drop.has(s.id)); v.edges = v.edges.filter(x => x !== e && !drop.has(x.from) && !drop.has(x.to)); }
+}
+function channelsOf(v) { const set = new Set(); for (const s of v?.steps ?? []) if (s.type === 'delivery') set.add(s.config.channel); return CHANNELS.filter(c => set.has(c)); }
+function stepSummary(step, v) {
+  const c = step.config;
+  switch (step.type) {
+    case 'event': return `${eventById(c.eventId)?.name ?? c.eventId} · ${c.entryMode}`;
+    case 'delivery': { const it = contentById(c.contentId); return `${CHANNEL_LABEL[c.channel]} · ${it ? `${it.name} ${it.language.toUpperCase()}` : 'no content'}`; }
+    case 'wait': return `${c.amount} ${c.unit}`;
+    case 'segmentSplit': return `${c.segments.length} segment${c.segments.length === 1 ? '' : 's'} + Remaining`;
+    case 'engagementSplit': return c.deliveryStepId ? `On “${stepOf(v, c.deliveryStepId)?.name ?? '?'}”` : 'No linked delivery';
+    case 'shuffleSplit': return c.paths.map(p => `${p.pct} %`).join(' / ');
+    case 'controlGroup': return 'Kept for comparison';
+    case 'exit': return 'End of journey';
+  }
+}
+
+/* [1] version lifecycle — one table; the version bar's buttons are derived from it */
+const VERSION_TRANSITIONS = [
+  { from: 'draft', to: 'pending', role: 'marketer', action: 'submit', label: 'Submit for approval', cls: 'primary' },
+  { from: 'draft', to: null, role: 'marketer', action: 'delete', label: 'Delete draft', cls: 'outline' },
+  { from: 'pending', to: 'draft', role: 'marketer', action: 'withdraw', label: 'Withdraw', cls: 'outline' },
+  { from: 'pending', to: null, role: 'approver', action: 'viewChanges', label: 'View changes', cls: 'outline' },
+  { from: 'pending', to: 'active', role: 'approver', action: 'approve', label: 'Approve and activate', cls: 'primary' },
+  { from: 'pending', to: 'draft', role: 'approver', action: 'reject', label: 'Reject', cls: 'outline' },
+  { from: 'active', to: 'draft', role: 'any', action: 'copy', label: 'Copy to new version', cls: 'outline' },
+  { from: 'active', to: 'closing', role: 'any', action: 'stop', label: 'Stop…', cls: 'outline' },
+  { from: 'closing', to: 'closed', role: 'any', action: 'close', label: 'Close', cls: 'outline' },
+  { from: 'closing', to: 'draft', role: 'any', action: 'copy', label: 'Copy to new version', cls: 'outline' },
+  { from: 'closed', to: 'draft', role: 'any', action: 'copy', label: 'Copy to new version', cls: 'outline' },
+];
+const actionsFor = (v, role) => VERSION_TRANSITIONS.filter(t => t.from === v.status && (t.role === 'any' || t.role === role));
+const STATUS_LABEL = { draft: 'Draft', pending: 'Pending approval', active: 'Active', closing: 'Closing', closed: 'Closed' };
+const STATUS_CLS = { draft: 'grey', pending: 'warn', active: 'ok', closing: 'orange', closed: 'navy' };
+const CONTACT_STATUS_CLS = { Waiting: 'warn', 'In step': 'acc', Exited: 'ok', Skipped: 'grey', 'Control group': 'navy' };
+
+/* [1] the single rule for what is editable per version state */
+function canEdit(v, step, field) {
+  if (v.status === 'draft') return true;
+  if (v.status === 'active' || v.status === 'closing') return !!step && step.type === 'delivery' && field === 'contentId';
+  return false;
+}
+const isLocked = v => v.status !== 'draft';
+
+/* journey list tabs: a journey can be live and have a version pending */
+function journeyStatuses(j) {
+  const vs = versionsOf(j.id), has = st => vs.some(v => v.status === st), out = [];
+  if (has('pending')) out.push('pending');
+  if (has('active') || has('closing')) out.push('live');
+  if (!out.length && has('draft')) out.push('draft');
+  if (!out.length && vs.length && vs.every(v => v.status === 'closed')) out.push('past');
+  return out;
+}
+const versionsOf = jid => VERSIONS.filter(v => v.journeyId === jid).sort((a, b) => b.no - a.no);
+function primaryVersion(j) { const vs = versionsOf(j.id), by = st => vs.find(v => v.status === st); return by('active') ?? by('closing') ?? by('pending') ?? vs[0]; }
+const activeVersion = jid => VERSIONS.find(v => v.journeyId === jid && v.status === 'active');
+
+/* [1] validation — blocks Submit */
+function validateVersion(v) {
+  const issues = [], en = entryOf(v);
+  if (!en) return [{ stepId: null, message: 'The journey has no Event entry.' }];
+  for (const s of reachable(v)) {
+    const c = s.config;
+    if (s.type === 'segmentSplit' && (c.segments.length === 0 || c.segments.some(x => !x))) issues.push({ stepId: s.id, message: `“${s.name}”: segment split without a segment on every path.` });
+    if (s.type === 'shuffleSplit') { const t = c.paths.reduce((a, p) => a + (+p.pct || 0), 0); if (t !== 100) issues.push({ stepId: s.id, message: `“${s.name}”: shuffle split paths total ${t} %, not 100 %.` }); }
+    if (s.type === 'engagementSplit' && (!c.deliveryStepId || !stepOf(v, c.deliveryStepId))) issues.push({ stepId: s.id, message: `“${s.name}”: engagement split without a linked delivery.` });
+    if (s.type === 'delivery' && !c.channel) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without a channel.` });
+    if (s.type === 'delivery' && c.channel && !c.contentId) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without content.` });
+    for (const o of outletsOf(s)) if (!edgeOut(v, s.id, o.key)) issues.push({ stepId: s.id, message: `“${s.name}”${o.label ? ` · ${o.label}` : ''}: path does not end with Exit.` });
+  }
+  return issues;
+}
+
+/* [1] View changes: diff by step id (+ edges); the content choice alone is not a structural change */
+function diffVersions(pending, active) {
+  const a = new Map((active?.steps ?? []).map(s => [s.id, s])), p = new Map(pending.steps.map(s => [s.id, s]));
+  const structural = s => JSON.stringify({ type: s.type, config: s.type === 'delivery' ? { ...s.config, contentId: null } : s.config, out: pending.edges.filter(e => e.from === s.id).map(e => e.label + '>' + e.to) });
+  const structuralOld = s => JSON.stringify({ type: s.type, config: s.type === 'delivery' ? { ...s.config, contentId: null } : s.config, out: (active?.edges ?? []).filter(e => e.from === s.id).map(e => e.label + '>' + e.to) });
+  const added = [], removed = [], changed = [];
+  for (const s of pending.steps) {
+    const old = a.get(s.id);
+    if (!old) added.push({ stepId: s.id, name: s.name, detail: 'New step' });
+    else if (structural(s) !== structuralOld(old)) changed.push({ stepId: s.id, name: s.name, detail: describeChange(old, s) });
+    else if (s.type === 'delivery' && old.config.contentId !== s.config.contentId) changed.push({ stepId: s.id, name: s.name, detail: `Content: ${contentById(old.config.contentId)?.name ?? 'none'} → ${contentById(s.config.contentId)?.name ?? 'none'}`, contentOnly: true });
+    else if (old.name !== s.name) changed.push({ stepId: s.id, name: s.name, detail: `Renamed from “${old.name}”` });
+  }
+  for (const s of active?.steps ?? []) if (!p.has(s.id)) removed.push({ stepId: s.id, name: s.name, detail: 'Step removed' });
+  const structureChanged = added.length > 0 || removed.length > 0 || changed.some(c => !c.contentOnly);
+  return { added, removed, changed, structureChanged };
+}
+function describeChange(o, s) {
+  if (o.type !== s.type) return `Type changed ${o.type} → ${s.type}`;
+  if (s.type === 'wait') return `Wait ${o.config.amount} ${o.config.unit} → ${s.config.amount} ${s.config.unit}`;
+  if (s.type === 'delivery') { const b = []; if (o.config.channel !== s.config.channel) b.push('channel'); if (o.config.offerId !== s.config.offerId) b.push('offer'); if (o.config.policyId !== s.config.policyId) b.push('communication rules'); if (o.config.sendToUnsubscribed !== s.config.sendToUnsubscribed) b.push('send to unsubscribed'); return b.length ? `Changed: ${b.join(', ')}` : 'Next step changed'; }
+  if (s.type === 'shuffleSplit') return 'Shuffle paths changed';
+  if (s.type === 'segmentSplit') return 'Segments changed';
+  if (s.type === 'engagementSplit') return 'Linked delivery changed';
+  if (s.type === 'event') return `Entry: ${o.config.eventId} / ${o.config.entryMode} → ${s.config.eventId} / ${s.config.entryMode}`;
+  return 'Next step changed';
+}
+
+/* layout — journeys are trees; rank = depth, cross axis = tidy leaf slots. No library. */
+const NW = 200, NH = 72, STUB_W = 150, STUB_H = 34, END_R = 11;
+/* build the drawable graph: reachable steps, stubs for collapsed split paths, end marks for paths without Exit */
+function buildGraph(v, opts = {}) {
+  const collapsed = opts.collapsed ?? new Set(), nodes = [], edges = [], en = entryOf(v);
+  if (!en) return { nodes, edges };
+  const seen = new Set();
+  const subtreeCount = id => 1 + [...descendants(v, id)].length;
+  const walk = id => {
+    if (seen.has(id)) return; const step = stepOf(v, id); if (!step) return; seen.add(id);
+    nodes.push({ id, kind: 'step', step, status: opts.status?.[id] });
+    const isCollapsed = collapsed.has(id) && isSplit(step);
+    outletsOf(step).forEach((o, i) => {
+      const e = edgeOut(v, id, o.key);
+      if (!e) { const eid = `${id}-end-${i}`; nodes.push({ id: eid, kind: 'end' }); edges.push({ id: `${id}:${o.key}`, from: id, to: eid, key: o.key, label: o.label, dangling: true }); return; }
+      if (isCollapsed) { const sid = `${id}-stub-${i}`; nodes.push({ id: sid, kind: 'stub', parent: id, hidden: subtreeCount(e.to) }); edges.push({ id: `${id}:${o.key}`, from: id, to: sid, key: o.key, label: o.label, edge: e }); return; }
+      edges.push({ id: `${id}:${o.key}`, from: id, to: e.to, key: o.key, label: o.label, edge: e, status: opts.edgeStatus?.(e) });
+      walk(e.to);
+    });
+  };
+  walk(en.id);
+  return { nodes, edges };
+}
+function layoutGraph(graph, orientation, extraH = 0) {
+  const size = n => n.kind === 'step' ? { w: NW, h: NH + extraH } : n.kind === 'stub' ? { w: STUB_W, h: STUB_H } : { w: END_R * 2, h: END_R * 2 };
+  const byId = new Map(graph.nodes.map(n => [n.id, n])), children = new Map();
+  for (const e of graph.edges) { if (!children.has(e.from)) children.set(e.from, []); children.get(e.from).push(e.to); }
+  const hasParent = new Set(graph.edges.map(e => e.to));
+  const roots = graph.nodes.filter(n => !hasParent.has(n.id)).map(n => n.id);
+  const depth = new Map(), cross = new Map(); let slot = 0;
+  const GAP_RANK = orientation === 'LR' ? 64 : 48, GAP_CROSS = orientation === 'LR' ? 22 : 36;
+  const rankSize = orientation === 'LR' ? NW : NH + extraH, crossSize = orientation === 'LR' ? NH + extraH : NW;
+  const place = (id, d) => {
+    depth.set(id, Math.max(d, depth.get(id) ?? 0));
+    const kids = (children.get(id) ?? []).filter(k => byId.has(k));
+    if (!kids.length) { cross.set(id, slot++); return; }
+    for (const k of kids) place(k, d + 1);
+    cross.set(id, kids.reduce((a, k) => a + cross.get(k), 0) / kids.length);
+  };
+  for (const r of roots) place(r, 0);
+  const pos = {}; let width = 0, height = 0;
+  for (const n of graph.nodes) {
+    const s = size(n), d = depth.get(n.id) ?? 0, c = cross.get(n.id) ?? 0;
+    const rankPos = 24 + d * (rankSize + GAP_RANK), crossPos = 24 + c * (crossSize + GAP_CROSS);
+    const x = orientation === 'LR' ? rankPos : crossPos + (NW - s.w) / 2, y = orientation === 'LR' ? crossPos + (NH + extraH - s.h) / 2 : rankPos;
+    pos[n.id] = { x, y, w: s.w, h: s.h }; width = Math.max(width, x + s.w + 24); height = Math.max(height, y + s.h + 24);
+  }
+  return { pos, width, height };
+}
+/* cubic connector between two boxes; split outlets fan out along the exit side */
+function edgePath(a, b, orientation, index, count, cardH) {
+  const spread = size => count <= 1 ? 0 : ((index + 1) / (count + 1) - 0.5) * size * 0.9;
+  const ah = Math.min(a.h, cardH), bh = Math.min(b.h, cardH);
+  let x1, y1, x2, y2;
+  if (orientation === 'LR') { x1 = a.x + a.w; y1 = a.y + ah / 2 + spread(ah); x2 = b.x; y2 = b.y + bh / 2; }
+  else { x1 = a.x + a.w / 2 + spread(a.w); y1 = a.y + a.h; x2 = b.x + b.w / 2; y2 = b.y; }
+  const dx = x2 - x1, dy = y2 - y1;
+  const c1 = orientation === 'LR' ? [x1 + dx * .5, y1] : [x1, y1 + dy * .5], c2 = orientation === 'LR' ? [x2 - dx * .5, y2] : [x2, y2 - dy * .5];
+  const at = t => { const m = 1 - t; return { x: m * m * m * x1 + 3 * m * m * t * c1[0] + 3 * m * t * t * c2[0] + t * t * t * x2, y: m * m * m * y1 + 3 * m * m * t * c1[1] + 3 * m * t * t * c2[1] + t * t * t * y2 }; };
+  return { d: `M${x1},${y1} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${x2},${y2}`, mid: at(.5), at };
+}
+
+/* [6] stats derived from CONTACT_STATES */
+function statesFor(jid, versionId, since) { return CONTACT_STATES.filter(s => s.journeyId === jid && (!versionId || s.versionId === versionId) && (!since || s.receivedAt >= since)); }
+function stepStats(v, states) {
+  const out = {}; for (const s of v.steps) out[s.id] = { entered: 0, waiting: 0, exited: 0, sent: 0, skipped: 0, opened: 0, clicked: 0, control: 0, paths: {} };
+  for (const st of states) {
+    for (const l of st.history) { const o = out[l.stepId]; if (!o) continue;
+      if (l.event === 'entered') o.entered++; else if (l.event === 'sent') o.sent++; else if (l.event === 'skipped') o.skipped++; else if (l.event === 'opened') o.opened++; else if (l.event === 'clicked') o.clicked++; else if (l.event === 'control') o.control++; else if (l.event === 'split') o.paths[l.label] = (o.paths[l.label] ?? 0) + 1; }
+    if (st.status === 'Waiting' || st.status === 'In step') { const o = out[st.stepId]; if (o) o.waiting++; }
+  }
+  for (const o of Object.values(out)) o.exited = o.entered - o.waiting;
+  return out;
+}
+function totals(states) { const t = { entered: states.length, inside: 0, exited: 0, skipped: 0, control: 0 }; for (const s of states) { if (s.status === 'Waiting' || s.status === 'In step') t.inside++; else if (s.status === 'Exited') t.exited++; else if (s.status === 'Skipped') t.skipped++; else t.control++; } return t; }
+function channelStats(states, versions) {
+  const ch = new Map(); for (const v of versions) for (const s of v.steps) if (s.type === 'delivery') ch.set(s.id, s.config.channel);
+  const out = { email: { sent: 0, opened: 0, clicked: 0, skipped: 0 }, sms: { sent: 0, opened: 0, clicked: 0, skipped: 0 }, push: { sent: 0, opened: 0, clicked: 0, skipped: 0 } };
+  for (const st of states) for (const l of st.history) { const c = ch.get(l.stepId); if (c && out[c][l.event] !== undefined) out[c][l.event]++; }
+  return out;
+}
+function offerStats(states, versions) {
+  const of = new Map(); for (const v of versions) for (const s of v.steps) if (s.type === 'delivery' && s.config.offerId) of.set(s.id, s.config.offerId);
+  const out = {};
+  for (const st of states) for (const l of st.history) { const o = of.get(l.stepId); if (!o) continue; const r = out[o] ??= { sent: 0, opened: 0, clicked: 0, skipped: 0 }; if (r[l.event] !== undefined) r[l.event]++; }
+  return out;
+}
+const pct = (n, d) => d ? Math.round(n / d * 100) : 0;
+
+/* [7] placeholders for test send and previews */
+const contactFields = c => ({ first_name: c.firstName, last_name: c.lastName, email: c.email, phone: c.phone ?? '', plan: c.plan, language: c.language.toUpperCase() });
+const offerFields = o => o ? { offer_name: o.name, offer_code: o.code, offer_link: o.link } : {};
+const fill = (text, values) => (text || '').replace(/\{\{\s*([a-z_]+)\s*\}\}/gi, (_, k) => values[k] !== undefined && values[k] !== '' ? values[k] : `⟨${k}⟩`);
+function renderContent(item, values) {
+  const b = item.body;
+  if (item.channel === 'email') return `Subject: ${fill(b.subject, values)}\nPreheader: ${fill(b.preheader, values)}\n\n${fill(b.body, values)}`;
+  if (item.channel === 'sms') return fill(b.text, values);
+  return `${fill(b.title, values)}\n${fill(b.text, values)}\n${fill(b.link, values)}`;
+}
+const placeholdersIn = text => [...new Set([...(text || '').matchAll(/\{\{\s*([a-z_]+)\s*\}\}/gi)].map(m => m[1]))];
+function contentPlaceholders(item) { const b = item.body; return placeholdersIn(Object.values(b).join(' ')); }
+
+/* =====================================================================================
+   STATE
+   ===================================================================================== */
+const app = { role: 'marketer', view: 'journeys', journeyId: null, versionId: null, selectedStepId: null, zoom: 1, pan: { x: 0, y: 0 }, collapsed: new Set(),
+  list: { tab: 'live', q: '', event: '', channel: '', contactList: '' }, editorSub: {}, monitor: { journeyId: null, versionId: null, range: '30', tab: 'overview', q: '', step: '', status: '', contactId: null } };
+const me = () => USERS[app.role];
+const nowIso = () => new Date().toISOString();
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmtDate = (s, time) => { if (!s) return '—'; const d = new Date(s); const date = d.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }); return time ? `${date} ${d.toLocaleTimeString('en-CA', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'UTC' })}` : date; };
+const fmtNum = n => Number(n).toLocaleString('en-CA');
+const $ = id => document.getElementById(id);
+const curJourney = () => JOURNEYS.find(j => j.id === app.journeyId);
+const curVersion = () => VERSIONS.find(v => v.id === app.versionId);
+function touch(j) { j.updatedAt = nowIso(); j.updatedBy = me().id; }
+function logHistory(v, text) { v.history.push({ at: nowIso(), by: me().id, text }); }
+
+/* [1] version actions — the one place state changes */
+const VERSION_ACTIONS = {
+  submit(v, note) { v.status = 'pending'; if (note) v.note = note; v.submittedAt = nowIso(); v.submittedBy = me().id; v.rejectComment = null; logHistory(v, `Submitted for approval${note ? `: “${note}”` : ''}`); },
+  withdraw(v) { v.status = 'draft'; logHistory(v, 'Withdrawn from approval'); },
+  approve(v) { for (const x of VERSIONS) if (x.journeyId === v.journeyId && x.status === 'active') { x.status = 'closing'; logHistory(x, `Superseded by v${v.no} → Closing`); } v.status = 'active'; v.approvedAt = nowIso(); v.approvedBy = me().id; logHistory(v, 'Approved and activated'); },
+  reject(v, comment) { v.status = 'draft'; v.rejectComment = comment; logHistory(v, `Rejected: “${comment}”`); },
+  stop(v, mode) { v.status = mode; if (mode === 'closed') v.closedAt = nowIso(); logHistory(v, mode === 'closing' ? 'Stopped → Closing (contacts inside finish their path)' : 'Stopped → Closed'); },
+  close(v) { v.status = 'closed'; v.closedAt = nowIso(); logHistory(v, 'Closed'); },
+  copy(v) {
+    const no = Math.max(...versionsOf(v.journeyId).map(x => x.no)) + 1;
+    const nv = { id: uid('v'), journeyId: v.journeyId, no, status: 'draft', note: '', createdBy: me().id, createdAt: nowIso(), history: [{ at: nowIso(), by: me().id, text: `Copied from v${v.no}` }], steps: JSON.parse(JSON.stringify(v.steps)), edges: JSON.parse(JSON.stringify(v.edges)) };
+    VERSIONS.push(nv); return nv;
+  },
+  delete(v) { const i = VERSIONS.indexOf(v); if (i >= 0) VERSIONS.splice(i, 1); },
+};
+function createJourney({ name, eventId, entryMode, contactList }) {
+  const j = { id: uid('j'), name, description: '', eventId, entryMode, contactList, overrideUnsubscribe: false, testUsers: CONTACTS.filter(c => c.kind === contactList).slice(0, 2).map(c => c.id), orientation: 'LR', createdAt: nowIso(), updatedAt: nowIso(), updatedBy: me().id };
+  const en = S.event(uid('s'), eventId, entryMode), ex = S.exit(uid('s'));
+  const v = { id: uid('v'), journeyId: j.id, no: 1, status: 'draft', note: '', createdBy: me().id, createdAt: nowIso(), history: [{ at: nowIso(), by: me().id, text: 'Created' }], steps: [en, ex], edges: [E(en.id, ex.id)] };
+  JOURNEYS.unshift(j); VERSIONS.push(v); return { j, v };
+}
+function duplicateJourney(j) {
+  const src = primaryVersion(j), c = { ...j, id: uid('j'), name: `${j.name} (copy)`, createdAt: nowIso(), updatedAt: nowIso(), updatedBy: me().id, testUsers: [...j.testUsers] };
+  const map = new Map(src.steps.map(s => [s.id, uid('s')]));
+  const steps = src.steps.map(s => { const n = JSON.parse(JSON.stringify(s)); n.id = map.get(s.id); if (n.type === 'engagementSplit' && n.config.deliveryStepId) n.config.deliveryStepId = map.get(n.config.deliveryStepId) ?? null; return n; });
+  const edges = src.edges.map(e => E(map.get(e.from), map.get(e.to), e.label));
+  JOURNEYS.unshift(c); VERSIONS.push({ id: uid('v'), journeyId: c.id, no: 1, status: 'draft', note: '', createdBy: me().id, createdAt: nowIso(), history: [{ at: nowIso(), by: me().id, text: `Duplicated from “${j.name}” v${src.no}` }], steps, edges });
+  return c;
+}
+
+/* =====================================================================================
+   RENDER — one render<View>() per view; helpers return HTML strings.
+   ===================================================================================== */
+const ICONS = {
+  journeys: 'M4 18 9 6l3 7 3-5 5 10', monitor: 'M4 19V9M10 19V5M16 19v-8M22 19H2', plus: 'M12 5v14M5 12h14', search: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4',
+  email: 'M3 6h18v12H3zM3 7l9 6 9-6', sms: 'M4 5h16v11H9l-5 4z', push: 'M6 8a6 6 0 0 1 12 0v5l2 3H4l2-3zM10 19a2 2 0 0 0 4 0', event: 'M13 2 4 14h7l-1 8 9-12h-7z',
+  wait: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2', shuffle: 'M3 7h4l10 10h4M3 17h4l10-10h4M18 4l3 3-3 3M18 14l3 3-3 3', control: 'M5 5h14v14H5zM9 9h6v6H9z',
+  exit: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM9 9h6v6H9z', engagement: 'M4 12s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6zM12 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4', segment: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 3v9l7 5',
+  settings: 'M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM4 12h2M18 12h2M12 4v2M12 18v2M6.3 6.3l1.4 1.4M16.3 16.3l1.4 1.4M6.3 17.7l1.4-1.4M16.3 7.7l1.4-1.4', send: 'M22 2 11 13M22 2 15 22l-4-9-9-4z',
+  lr: 'M3 12h16M15 8l4 4-4 4', tb: 'M12 3v16M8 15l4 4 4-4', zoomin: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4M11 8v6M8 11h6', zoomout: 'M11 4a7 7 0 1 1 0 14 7 7 0 0 1 0-14zM20 20l-4-4M8 11h6',
+  fit: 'M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5', copy: 'M8 8h12v12H8zM4 16V4h12', trash: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6', check: 'M4 12l5 5L20 7', x: 'M6 6l12 12M18 6 6 18',
+  info: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 11v5M12 8h.01', warn: 'M12 3 2 21h20zM12 10v5M12 18h.01', lock: 'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4', diff: 'M4 5h7v14H4zM13 5h7v14h-7zM7 9v6M14 12h5',
+  clock: 'M12 3a9 9 0 1 1 0 18 9 9 0 0 1 0-18zM12 7v5l3 2', validate: 'M4 12l5 5L20 7', collapse: 'M8 10l4-4 4 4M8 14l4 4 4-4', expand: 'M8 4l4 4 4-4M8 20l4-4 4 4',
+};
+const icon = (n, s = 14) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="${ICONS[n] ?? ICONS.info}"/></svg>`;
+const chanIcon = ch => `<span class="ic ${ch}" title="${CHANNEL_LABEL[ch]}">${icon(ch, 13)}</span>`;
+const pill = (text, cls = '') => `<span class="pill ${cls}">${esc(text)}</span>`;
+const vpill = st => pill(STATUS_LABEL[st], STATUS_CLS[st]);
+
+function toast(title, msg, cls) { const t = $('toast'); const d = document.createElement('div'); if (cls) d.className = cls; d.innerHTML = `<b>${esc(title)}</b>${msg ? `<div style="white-space:pre-wrap">${esc(msg)}</div>` : ''}`; t.appendChild(d); setTimeout(() => { d.style.opacity = '0'; d.style.transition = 'opacity .3s'; setTimeout(() => d.remove(), 320); }, msg && msg.length > 120 ? 9000 : 4200); }
+function openModal(html, size = 'sm', host = 'modal') { const bg = $(host), card = $(host + '-card'); card.className = `card modal ${size}`; card.innerHTML = html; bg.hidden = false; }
+function closeModal(host = 'modal') { $(host).hidden = true; $(host + '-card').innerHTML = ''; }
+const modalHtml = (title, body, footer) => `<div class="ph"><h3>${title}</h3><button class="x right" data-act="modal-close" aria-label="Close">×</button></div><div class="pb">${body}</div>${footer ? `<div class="mf">${footer}</div>` : ''}`;
+document.querySelectorAll('.modal-bg').forEach(bg => bg.addEventListener('mousedown', e => { if (e.target === bg) closeModal(bg.id); }));
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { if (!$('modal2').hidden) closeModal('modal2'); else if (!$('modal').hidden) closeModal('modal'); else if ($('drawer-host').innerHTML) $('drawer-host').innerHTML = ''; } });
+
+/* role + navigation (same pattern as CM-New-UI-UX2: data-roles / data-view) */
+function applyRole(r) {
+  app.role = r; $('role-lbl').textContent = ROLE_NAMES[r]; $('me-name').textContent = USERS[r].name; $('role-sel').value = r;
+  document.querySelectorAll('.nav button[data-roles]').forEach(b => { b.hidden = !b.dataset.roles.split(' ').includes(r); });
+  $('nav-foot').textContent = r === 'approver' ? 'Approver: reviews and activates what marketers submit. The Pending approval tab is the queue.' : 'Marketer: builds journeys, submits versions for approval, follows them in the Monitor.';
+  if (app.view === 'journeys') app.list.tab = r === 'approver' ? 'pending' : 'live';
+  render();
+}
+function showView(view, params = {}) {
+  app.view = view; Object.assign(app, params);
+  document.querySelectorAll('.view').forEach(s => s.classList.toggle('active', s.id === `view-${view}`));
+  document.querySelectorAll('.nav button[data-view]').forEach(b => b.classList.toggle('active', b.dataset.view === (view === 'editor' ? 'journeys' : view)));
+  render();
+}
+function openEditor(jid, versionId, stepId) { const j = JOURNEYS.find(x => x.id === jid); if (!j) return; app.selectedStepId = stepId ?? null; app.collapsed = new Set(); showView('editor', { journeyId: jid, versionId: versionId ?? primaryVersion(j)?.id ?? null }); fitCanvas(); }
+function openMonitor(jid, tab = 'overview', stepId = '') { app.monitor.journeyId = jid ?? app.monitor.journeyId ?? JOURNEYS[0]?.id; app.monitor.versionId = null; app.monitor.tab = tab; app.monitor.step = stepId; app.monitor.contactId = null; showView('monitor'); }
+function render() {
+  const j = curJourney();
+  $('nav-sub').hidden = !(j && (app.view === 'editor' || app.view === 'monitor')); if (j) $('nav-sub').textContent = j.name;
+  if (app.view === 'journeys') renderJourneyList();
+  else if (app.view === 'editor') renderEditor();
+  else renderMonitor();
+}
+function crumb(parts) { $('crumb').innerHTML = parts.map((p, i) => (i ? '<span class="sep" style="color:var(--ink-3)">›</span>' : '') + (p.act ? `<button data-act="${p.act}" data-arg="${esc(p.arg ?? '')}">${esc(p.label)}</button>` : `<span class="${i === parts.length - 1 ? 'cur' : ''}">${esc(p.label)}</span>`)).join('') + (parts.right ?? ''); }
+
+/* ---- step (a) placeholders; replaced in steps (b)–(e) ---- */
+function renderJourneyList() { crumb([{ label: 'Journeys' }]); $('view-journeys').innerHTML = `<div class="card"><div class="card-h"><h2>Journeys</h2><p>${JOURNEYS.length} journeys · ${CONTACTS.length} contacts · ${CONTACT_STATES.length} contact states seeded.</p></div></div>`; }
+function renderEditor() { crumb([{ label: 'Journeys', act: 'go-journeys' }, { label: curJourney()?.name ?? '' }]); $('view-editor').innerHTML = `<div class="card"><div class="card-h"><h2>${esc(curJourney()?.name ?? '')}</h2></div></div>`; }
+function renderMonitor() { crumb([{ label: 'Journey Monitor' }]); $('view-monitor').innerHTML = `<div class="card"><div class="card-h"><h2>Journey Monitor</h2></div></div>`; }
+function fitCanvas() {}
+
+/* ---- global event delegation: every control carries data-act ---- */
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if (!el) return;
+  const act = el.dataset.act, arg = el.dataset.arg;
+  if (act === 'modal-close') { closeModal(el.closest('.modal-bg').id); return; }
+  if (act === 'go-journeys') { showView('journeys'); return; }
+  if (act === 'go-editor') { openEditor(arg, el.dataset.v || undefined); return; }
+  if (act === 'go-monitor') { openMonitor(arg); return; }
+  if (typeof handleAct === 'function') handleAct(act, arg, el, e);
+});
+document.querySelectorAll('.nav button[data-view]').forEach(b => b.addEventListener('click', () => { if (b.dataset.view === 'monitor') openMonitor(app.journeyId ?? app.monitor.journeyId); else showView('journeys'); }));
+document.querySelectorAll('.nav button .nl').forEach(l => l.parentElement.title = l.textContent.trim());
+$('btn-nav').onclick = () => { const closed = document.querySelector('.app').classList.toggle('nav-closed'); $('btn-nav').classList.toggle('on', closed); $('btn-nav').title = closed ? 'Expand menu' : 'Collapse menu'; setTimeout(fitCanvas, 170); };
+$('role-sel').onchange = e => applyRole(e.target.value);
+$('btn-reset').onclick = () => { resetDemo(); app.journeyId = null; app.versionId = null; app.selectedStepId = null; app.monitor.journeyId = null; showView('journeys'); toast('Demo data reset', 'Every change made in this session was discarded.'); };
+
+/* boot */
+applyRole('marketer');
+showView('journeys');
+</script>
+</body>
 </html>
