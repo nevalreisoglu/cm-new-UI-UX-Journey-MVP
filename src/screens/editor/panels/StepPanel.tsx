@@ -2,9 +2,9 @@ import { useState } from 'react'
 import type { Journey, Step, Version } from '../../../model/types'
 import { Icon } from '../../../ui/Icon'
 import { StepTypeMenu } from '../Canvas'
-import { paletteFor, type PaletteItem } from '../stepTypes'
+import { kindLabel, paletteFor, type PaletteItem } from '../stepTypes'
 import { EventPanel } from './EventPanel'
-import { MessagePanel } from './MessagePanel'
+import { DeliveryPanel } from './DeliveryPanel'
 import { WaitPanel, ControlGroupPanel, ExitPanel } from './SimplePanels'
 import { SegmentSplitPanel, EngagementSplitPanel, ShuffleSplitPanel } from './SplitPanels'
 
@@ -20,10 +20,10 @@ export interface PanelProps {
 
 export function StepPanel(props: PanelProps & { onDelete: () => void; onAddNext: (outletId: string, item: PaletteItem) => void }) {
   const { step, mode, onChange, onDelete, onAddNext } = props
-  const item = paletteFor(step.type, step.type === 'message' ? step.message.channel : undefined)
+  const item = paletteFor(step.type)
   const [menuOutlet, setMenuOutlet] = useState<string | null>(null)
   const full = mode === 'full'
-  const kind = item.group === 'Message' ? `${item.label} message` : item.group === 'Split' ? `${item.label} split` : item.label
+  const kind = kindLabel(item)
 
   return (
     <div className="spanel">
@@ -39,7 +39,7 @@ export function StepPanel(props: PanelProps & { onDelete: () => void; onAddNext:
       </div>
       <div className="pb">
         {step.type === 'event' && <EventPanel {...props} step={step} />}
-        {step.type === 'message' && <MessagePanel {...props} step={step} />}
+        {step.type === 'delivery' && <DeliveryPanel {...props} step={step} />}
         {step.type === 'wait' && <WaitPanel {...props} step={step} />}
         {step.type === 'segmentSplit' && <SegmentSplitPanel {...props} step={step} />}
         {step.type === 'engagementSplit' && <EngagementSplitPanel {...props} step={step} />}

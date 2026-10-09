@@ -10,18 +10,20 @@ export interface DiffEntry {
   detail: string
 }
 
+// Everything but the content choice is structure; the content choice is the one change an
+// Active version accepts without approval.
 const structural = (s: Step) => {
   const { name: _n, collapsed: _c, ...rest } = s
   void _n
   void _c
-  if (rest.type === 'message') {
-    const { content: _content, ...m } = rest.message
+  if (rest.type === 'delivery') {
+    const { contentId: _content, ...d } = rest.delivery
     void _content
-    return JSON.stringify({ ...rest, message: m })
+    return JSON.stringify({ ...rest, delivery: d })
   }
   return JSON.stringify(rest)
 }
-const contentOf = (s: Step) => (s.type === 'message' ? JSON.stringify(s.message.content) : '')
+const contentOf = (s: Step) => (s.type === 'delivery' ? s.delivery.contentId ?? '' : '')
 
 export function diffVersions(pending: Version, active: Version | undefined): { entries: DiffEntry[]; structureChanged: boolean; graph: Graph } {
   const entries: DiffEntry[] = []
@@ -38,7 +40,7 @@ export function diffVersions(pending: Version, active: Version | undefined): { e
       entries.push({ stepId: s.id, name: s.name, status: 'changed', detail: describeChange(old, s) })
     } else if (contentOf(old) !== contentOf(s)) {
       status[s.id] = 'changed'
-      entries.push({ stepId: s.id, name: s.name, status: 'changed', detail: 'Message content changed' })
+      entries.push({ stepId: s.id, name: s.name, status: 'changed', detail: 'Content choice changed' })
     } else if (old.name !== s.name) {
       status[s.id] = 'changed'
       entries.push({ stepId: s.id, name: s.name, status: 'changed', detail: `Renamed from “${old.name}”` })
@@ -69,7 +71,7 @@ export function diffVersions(pending: Version, active: Version | undefined): { e
     const oldOutlet = oldFrom?.outlets.find((o) => o.id === e.outletId)
     if (!oldFrom || !oldOutlet || oldOutlet.next !== e.to) e.status = 'added'
   }
-  const structureChanged = entries.some((e) => e.status !== 'changed' || e.detail !== 'Message content changed')
+  const structureChanged = entries.some((e) => e.status !== 'changed' || e.detail !== 'Content choice changed')
   return { entries, structureChanged, graph }
 }
 
@@ -80,13 +82,12 @@ function describeChange(old: Step, s: Step): string {
   if (s.type === 'segmentSplit') return 'Segments changed'
   if (s.type === 'engagementSplit') return 'Linked message changed'
   if (s.type === 'event' && old.type === 'event') return `Entry: ${old.event.eventId} / ${old.event.entryMode} → ${s.event.eventId} / ${s.event.entryMode}`
-  if (s.type === 'message' && old.type === 'message') {
+  if (s.type === 'delivery' && old.type === 'delivery') {
     const bits: string[] = []
-    if (old.message.offerId !== s.message.offerId) bits.push('offer')
-    if (old.message.controlGroupShare !== s.message.controlGroupShare) bits.push('control group share')
-    if (old.message.policyId !== s.message.policyId) bits.push('communication rules')
-    if (old.message.defaultLanguage !== s.message.defaultLanguage) bits.push('default language')
-    if (old.message.sendToUnsubscribed !== s.message.sendToUnsubscribed) bits.push('send to unsubscribed')
+    if (old.delivery.channel !== s.delivery.channel) bits.push('channel')
+    if (old.delivery.offerId !== s.delivery.offerId) bits.push('offer')
+    if (old.delivery.policyId !== s.delivery.policyId) bits.push('communication rules')
+    if (old.delivery.sendToUnsubscribed !== s.delivery.sendToUnsubscribed) bits.push('send to unsubscribed')
     const outlets = old.outlets.map((o) => o.next).join() !== s.outlets.map((o) => o.next).join()
     if (outlets) bits.push('next step')
     return bits.length ? `Changed: ${bits.join(', ')}` : 'Settings changed'

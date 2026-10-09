@@ -48,8 +48,8 @@ README.md                  how to run, what is where, open questions
     (event, message, wait) have one outlet; splits have several; control group and exit have none.
     An outlet whose `next` is null is a path without Exit (drawn dashed, flagged by validation).
   - Types: `event` (eventId, entryMode single | batch, createContactIfMissing) ·
-    `message` (channel email | sms | push, defaultLanguage, content { fr, en }, offerId,
-    controlGroupShare, policyId, sendToUnsubscribed) · `wait` (amount, unit) ·
+    `delivery` (channel email | sms | push, contentId of a ready-made single-language content
+    item, offerId, policyId, sendToUnsubscribed) · `wait` (amount, unit) ·
     `segmentSplit` (segment per outlet + fixed Remaining outlet) ·
     `engagementSplit` (messageStepId; outlets Opened / Clicked / Remaining) ·
     `shuffleSplit` (percent per outlet) · `controlGroup` (name) · `exit`.
@@ -61,6 +61,7 @@ README.md                  how to run, what is where, open questions
   { at, stepId, kind: entered | waited | sent | opened | clicked | skipped | exited | control }.
   Every statistic on the Monitor is derived from these logs, so step counts add up by construction.
 - **EventDef** — id, name, payload fields (name, type, sample value).
+- **ContentItem** — id, channel, name, language, isDefault, body (email / sms / push fields).
 
 ## Screens
 
@@ -82,5 +83,9 @@ f. polish against the CM prototype look
 ## Deviations from the plan
 - Steps (c) and (d) were built together: the version bar and the lock mode shape the editor.
 - Deleting a split keeps its first path instead of removing the whole subtree (see README › Open questions).
+- Spec change (2026-10-09): Email / SMS / Push steps became one Delivery step with ready-made
+  single-language content, a Create → Channel → Details stepper, no control-group share, offer
+  placeholders with attribution, and language handled by a Segment split. Seed journeys gained
+  FR / EN branches.
 - The reference prototype's host was not reachable from the build environment; its source repository
   (`CM-New-UI-UX2`, `index.html` + `docs/brand.md`) was used instead to copy the tokens and component styles.

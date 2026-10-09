@@ -55,3 +55,5 @@ export const eventById = (id: string) => EVENTS.find((e) => e.id === id)
 
 /** Contact fields usable as placeholders next to the payload fields (item 4). */
 export const CONTACT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'plan', 'language']
+/** Offer fields: filled from the Delivery's offer at send time; sends are attributed to the offer. */
+export const OFFER_FIELDS = ['offer_name', 'offer_code', 'offer_link']

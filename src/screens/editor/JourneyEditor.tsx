@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useActions, useJourney, useStore } from '../../app/store'
 import { navigate } from '../../app/router'
 import { makeStep, primaryVersion } from '../../model/graph'
+import { defaultContentFor } from '../../mock'
 import { buildGraph, type GraphEdge } from '../../model/layout'
 import { invalidStepIds, validate } from '../../model/validation'
 import type { Step } from '../../model/types'
@@ -44,20 +45,22 @@ export function JourneyEditor({ journeyId, versionId, stepId }: { journeyId: str
     )
   }
 
-  // Edit mode by version state: Draft → full; Active / Closing → message content only (structure
-  // locked); Pending / Closed → read-only.
+  // Edit mode by version state: Draft → full; Active / Closing → only the Delivery content choice
+  // (structure locked); Pending / Closed → read-only.
   const mode: EditMode = version.status === 'draft' ? 'full' : version.status === 'active' || version.status === 'closing' ? 'content' : 'none'
   const locked = mode !== 'full'
   const selectedStep = version.steps.find((s) => s.id === selected) ?? null
 
+  // a new Delivery starts on Email with the channel's default content preselected
+  const newStep = (item: PaletteItem) => makeStep(item.type, item.type === 'delivery' ? { channel: 'email', contentId: defaultContentFor('email')?.id ?? null } : {})
   const addOnEdge = (edge: GraphEdge, item: PaletteItem) => {
-    const step = makeStep(item.type, { channel: item.channel })
+    const step = newStep(item)
     act.addStepOnConnection(journey.id, version, edge.from, edge.outletId, step)
     setSelected(step.id)
   }
   const addNext = (outletId: string, item: PaletteItem) => {
     if (!selectedStep) return
-    const step = makeStep(item.type, { channel: item.channel })
+    const step = newStep(item)
     act.addStepOnConnection(journey.id, version, selectedStep.id, outletId, step)
     setSelected(step.id)
   }
@@ -98,7 +101,7 @@ export function JourneyEditor({ journeyId, versionId, stepId }: { journeyId: str
           onViewChanges={() => setDlg('diff')}
         />
         {(version.status === 'active' || version.status === 'closing') && (
-          <div className="lockbar"><Icon name="lock" /> Structure locked — only message content can be edited. Content edits need no approval and are logged in the version history.</div>
+          <div className="lockbar"><Icon name="lock" /> Structure locked — only the content choice of a Delivery can be changed. Content changes need no approval and are logged in the version history.</div>
         )}
         {version.status === 'pending' && (
           <div className="lockbar"><Icon name="lock" /> Pending approval — read-only until the approver decides{state.role === 'marketer' ? ', or withdraw it to edit' : ''}.</div>

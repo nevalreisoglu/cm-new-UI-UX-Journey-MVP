@@ -1,6 +1,8 @@
 import type { Contact, ContactState, Journey, LogEntry, Step, Version } from '../model/types'
 import { stepMap, entryStep, isRemainingOutlet } from '../model/graph'
 import { eventById } from './events'
+import { contentById } from './contents'
+import { offerById } from './lists'
 import { hash01, makeRng } from './rng'
 import { ENROLMENT, NOW } from './journeys'
 
@@ -61,8 +63,10 @@ export function simulateVersion(journey: Journey, version: Version, contacts: Co
           t += rng.int(5, 55) * 1000 // processed within 60 s
           break
         }
-        case 'message': {
-          const m = step.message
+        case 'delivery': {
+          const m = step.delivery
+          const item = contentById(m.contentId)
+          const offer = offerById(m.offerId)
           t += rng.int(1, 3) * MIN
           if (t > now) {
             status = 'in_step'
@@ -84,14 +88,9 @@ export function simulateVersion(journey: Journey, version: Version, contacts: Co
             lastMessageSkipped = true
             break
           }
-          if (m.controlGroupShare > 0 && hash01(step.id + contact.id) * 100 < m.controlGroupShare) {
-            log.push({ at: iso(t), stepId: step.id, kind: 'control', detail: `Held out – message control group (${m.controlGroupShare} %)` })
-            lastDelivery = 'Held out · control group'
-            lastMessageSkipped = false
-            break
-          }
           lastMessageSkipped = false
-          log.push({ at: iso(t), stepId: step.id, kind: 'sent', detail: `Sent · ${m.channel.toUpperCase()} · ${contact.language.toUpperCase()}` })
+          // sends are attributed to the Delivery's offer (item 4)
+          log.push({ at: iso(t), stepId: step.id, kind: 'sent', detail: `Sent · ${m.channel.toUpperCase()} · ${item ? `${item.name} (${item.language.toUpperCase()})` : 'no content'}${offer ? ` · offer ${offer.code}` : ''}` })
           lastDelivery = `Delivered · ${m.channel === 'email' ? 'Email' : m.channel === 'sms' ? 'SMS' : 'Push'}`
           const openP = m.channel === 'email' ? 0.46 : m.channel === 'push' ? 0.34 : 0
           const clickP = m.channel === 'email' ? 0.38 : m.channel === 'push' ? 0.45 : 0.14
@@ -101,13 +100,13 @@ export function simulateVersion(journey: Journey, version: Version, contacts: Co
             lastDelivery = 'Opened'
             const clickAt = openAt + rng.int(1, 120) * MIN
             if (clickAt <= now && hash01('c' + step.id + contact.id) < clickP) {
-              log.push({ at: iso(clickAt), stepId: step.id, kind: 'clicked', detail: 'Clicked' })
+              log.push({ at: iso(clickAt), stepId: step.id, kind: 'clicked', detail: offer ? `Clicked · attributed to ${offer.code}` : 'Clicked' })
               lastDelivery = 'Clicked'
             }
           } else if (m.channel === 'sms') {
             const clickAt = t + rng.int(2, 600) * MIN
             if (clickAt <= now && hash01('c' + step.id + contact.id) < clickP) {
-              log.push({ at: iso(clickAt), stepId: step.id, kind: 'clicked', detail: 'Clicked the link' })
+              log.push({ at: iso(clickAt), stepId: step.id, kind: 'clicked', detail: offer ? `Clicked the link · attributed to ${offer.code}` : 'Clicked the link' })
               lastDelivery = 'Clicked'
             }
           }
@@ -128,6 +127,8 @@ export function simulateVersion(journey: Journey, version: Version, contacts: Co
           const hit = paths.find((o) => {
             const seg = step.segmentSplit.segments[o.id]
             if (!seg) return false
+            if (seg === 'seg-lang-fr') return contact.language === 'fr'
+            if (seg === 'seg-lang-en') return contact.language === 'en'
             const share = seg === 'seg-account-today' ? 0.22 : 0.35
             return hash01(seg + contact.id) < share
           })

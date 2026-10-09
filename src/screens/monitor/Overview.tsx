@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
-import { userName } from '../../mock'
-import { channelStats, pct, totals } from '../../model/stats'
+import { OFFERS, userName } from '../../mock'
+import { channelStats, offerStats, pct, totals } from '../../model/stats'
 import type { ContactState, Journey } from '../../model/types'
 import { ChannelIcon } from '../../ui/Icon'
 import { VersionPill } from '../../ui/Pill'
@@ -10,6 +10,7 @@ import { fmtDate, fmtNum } from '../../ui/format'
 export function Overview({ journey, states }: { journey: Journey; states: ContactState[] }) {
   const t = useMemo(() => totals(states), [states])
   const ch = useMemo(() => channelStats(states, journey.versions), [states, journey.versions])
+  const offers = useMemo(() => offerStats(states, journey.versions), [states, journey.versions])
   const perVersion = useMemo(() => {
     const m: Record<string, ReturnType<typeof totals>> = {}
     for (const v of journey.versions) m[v.id] = totals(states.filter((s) => s.versionId === v.id))
@@ -57,6 +58,30 @@ export function Overview({ journey, states }: { journey: Journey; states: Contac
           </tbody>
         </table>
       </div>
+
+      {Object.keys(offers).length > 0 && (
+        <div>
+          <div className="sec">Offers <span className="muted small" style={{ fontWeight: 400 }}>— sends attributed to the Delivery's offer</span></div>
+          <table className="tbl" style={{ marginTop: 6 }}>
+            <thead><tr><th>Offer</th><th>Code</th><th className="r">Sent</th><th className="r">Opened</th><th className="r">Clicked</th><th>Click rate</th></tr></thead>
+            <tbody>
+              {OFFERS.filter((o) => offers[o.id]).map((o) => {
+                const s = offers[o.id]
+                return (
+                  <tr key={o.id}>
+                    <td className="t1">{o.name}</td>
+                    <td className="mono">{o.code}</td>
+                    <td className="r num">{fmtNum(s.sent)}</td>
+                    <td className="r num">{fmtNum(s.opened)}</td>
+                    <td className="r num">{fmtNum(s.clicked)}</td>
+                    <td style={{ width: 220 }}><span className="row" style={{ gap: 8 }}><span className="pbar" style={{ width: 120 }}><i style={{ width: `${pct(s.clicked, s.sent)}%` }} /></span><span className="small num">{pct(s.clicked, s.sent)} %</span></span></td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       <div>
         <div className="sec">Versions</div>

@@ -162,3 +162,25 @@
 .vhist { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
 .vhist div { display: grid; grid-template-columns: 130px 1fr; gap: 10px; }
 .vhist span:first-child { color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+/* ---- delivery panel: stepper, channel cards, preview ----------------------------------- */
+.stepper { display: flex; gap: 4px; border-bottom: 1px solid var(--line); padding-bottom: 8px; }
+.stepper button { flex: 1; border: 1px solid var(--line); background: #fff; border-radius: 6px; padding: 6px 8px; font-size: 12.5px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 6px; justify-content: center; }
+.stepper button i { width: 18px; height: 18px; border-radius: 50%; border: 1px solid var(--line); display: inline-grid; place-items: center; font-style: normal; font-size: 11px; }
+.stepper button.on { background: var(--sec-soft); border-color: var(--sec-light); color: var(--sec-ink); font-weight: 500; }
+.stepper button.on i { background: var(--sec); border-color: var(--sec); color: var(--brand-navy); }
+.stepper button.done i { background: var(--ok-soft); border-color: var(--ok); color: var(--ok); }
+.chan-cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chan-card { border: 1.5px solid var(--line); background: #fff; border-radius: 8px; padding: 10px 8px; display: flex; flex-direction: column; align-items: center; gap: 6px; font-size: 12.5px; font-weight: 500; color: var(--ink); }
+.chan-card .ic { width: 28px; height: 28px; }
+.chan-card .ic svg { width: 16px; height: 16px; }
+.chan-card:hover { border-color: var(--brand-lilac); }
+.chan-card.on { border-color: var(--cta-bright); background: var(--cta-soft); box-shadow: 0 0 0 3px rgba(0, 181, 203, 0.2); }
+.chan-card:disabled { cursor: default; }
+.chan-card:disabled:not(.on) { opacity: 0.55; }
+.preview { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.preview .pv-h { background: var(--sec-soft); color: var(--sec-ink); padding: 7px 10px; display: flex; align-items: center; gap: 8px; font-size: 12.5px; }
+.preview .pv-b { padding: 10px 12px; font-size: 12.5px; display: flex; flex-direction: column; gap: 4px; background: var(--surface-2); }
+.preview .pv-b pre { margin: 4px 0 0; white-space: pre-wrap; font: inherit; }
+.preview .pv-b .muted { display: inline-block; min-width: 72px; }
+details summary { cursor: pointer; }

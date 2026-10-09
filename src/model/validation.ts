@@ -1,5 +1,5 @@
 import type { Step, Version } from './types'
-import { contentIsEmpty, isRemainingOutlet, entryStep } from './graph'
+import { isRemainingOutlet, entryStep } from './graph'
 
 // Roadmap item 1 — validation blocks "Submit for approval".
 
@@ -39,10 +39,8 @@ export function validate(version: Version): Issue[] {
           issues.push({ id: `eng-${s.id}`, stepId: s.id, text: `“${s.name}”: engagement split without a linked message.` })
         break
       }
-      case 'message': {
-        const m = s.message
-        if (contentIsEmpty(m.channel, m.content[m.defaultLanguage]))
-          issues.push({ id: `msg-${s.id}`, stepId: s.id, text: `“${s.name}”: no content in the default language (${m.defaultLanguage.toUpperCase()}).` })
+      case 'delivery': {
+        if (!s.delivery.contentId) issues.push({ id: `content-${s.id}`, stepId: s.id, text: `“${s.name}”: delivery without content.` })
         break
       }
     }

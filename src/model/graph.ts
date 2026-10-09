@@ -1,20 +1,11 @@
-import type {
-  Channel,
-  Journey,
-  Language,
-  MessageContent,
-  Outlet,
-  Step,
-  StepType,
-  Version,
-} from './types'
+import type { Channel, Journey, Outlet, Step, StepType, Version } from './types'
 
 let counter = 1000
 export const uid = (prefix: string) => `${prefix}-${(counter++).toString(36)}`
 
 export const STEP_LABEL: Record<StepType, string> = {
   event: 'Event',
-  message: 'Message',
+  delivery: 'Delivery',
   wait: 'Wait',
   segmentSplit: 'Segment split',
   engagementSplit: 'Engagement split',
@@ -25,26 +16,10 @@ export const STEP_LABEL: Record<StepType, string> = {
 
 export const CHANNEL_LABEL: Record<Channel, string> = { email: 'Email', sms: 'SMS', push: 'Push' }
 
-export function emptyContent(channel: Channel): MessageContent {
-  if (channel === 'email') return { subject: '', preheader: '', body: '' }
-  if (channel === 'sms') return { text: '' }
-  return { title: '', text: '', link: '' }
-}
-
-export function contentIsEmpty(channel: Channel, c: MessageContent): boolean {
-  if (channel === 'email') {
-    const e = c as { subject: string; body: string }
-    return !e.subject.trim() || !e.body.trim()
-  }
-  if (channel === 'sms') return !(c as { text: string }).text.trim()
-  const p = c as { title: string; text: string }
-  return !p.title.trim() || !p.text.trim()
-}
-
 /** Factory with sensible defaults per step type (items 3, 4, 5). */
 export function makeStep(
   type: StepType,
-  opts: { id?: string; name?: string; channel?: Channel; eventId?: string } = {},
+  opts: { id?: string; name?: string; channel?: Channel; eventId?: string; contentId?: string | null } = {},
 ): Step {
   const id = opts.id ?? uid('s')
   const one = (): Outlet[] => [{ id: `${id}-out`, label: '', next: null }]
@@ -57,22 +32,14 @@ export function makeStep(
         outlets: one(),
         event: { eventId: opts.eventId ?? 'order_abandoned', entryMode: 'single', createContactIfMissing: true },
       }
-    case 'message': {
+    case 'delivery': {
       const channel = opts.channel ?? 'email'
       return {
         id,
         type,
-        name: opts.name ?? `${CHANNEL_LABEL[channel]} message`,
+        name: opts.name ?? 'Delivery',
         outlets: one(),
-        message: {
-          channel,
-          defaultLanguage: 'fr',
-          content: { fr: emptyContent(channel), en: emptyContent(channel) },
-          offerId: null,
-          controlGroupShare: 0,
-          policyId: 'pol-default',
-          sendToUnsubscribed: false,
-        },
+        delivery: { channel, contentId: opts.contentId ?? null, offerId: null, policyId: 'pol-default', sendToUnsubscribed: false },
       }
     }
     case 'wait':
@@ -198,14 +165,14 @@ export function removeStep(steps: Step[], id: string): Step[] {
     )
 }
 
-/** Message steps that come before `id` on its path (for the engagement split). */
+/** Delivery steps that come before `id` on its path (for the engagement split). */
 export function messagesBefore(steps: Step[], id: string): Step[] {
   const out: Step[] = []
   let cur = parentOf(steps, id)
   const seen = new Set<string>()
   while (cur && !seen.has(cur.step.id)) {
     seen.add(cur.step.id)
-    if (cur.step.type === 'message') out.unshift(cur.step)
+    if (cur.step.type === 'delivery') out.unshift(cur.step)
     cur = parentOf(steps, cur.step.id)
   }
   return out
@@ -214,7 +181,7 @@ export function messagesBefore(steps: Step[], id: string): Step[] {
 export function channelsOf(version: Version | undefined): Channel[] {
   if (!version) return []
   const set = new Set<Channel>()
-  for (const s of version.steps) if (s.type === 'message') set.add(s.message.channel)
+  for (const s of version.steps) if (s.type === 'delivery') set.add(s.delivery.channel)
   return (['email', 'sms', 'push'] as Channel[]).filter((c) => set.has(c))
 }
 
@@ -239,15 +206,13 @@ export function journeyStatuses(j: Journey): JourneyStatus[] {
   return out
 }
 
-export function oneLineSummary(step: Step, ctx: { eventName: (id: string) => string; segmentName: (id: string) => string; stepName: (id: string) => string }): string {
+export function oneLineSummary(step: Step, ctx: { eventName: (id: string) => string; segmentName: (id: string) => string; stepName: (id: string) => string; contentName: (id: string | null) => string | undefined }): string {
   switch (step.type) {
     case 'event':
       return `${ctx.eventName(step.event.eventId)} · ${step.event.entryMode === 'batch' ? 'batch' : 'single'}`
-    case 'message': {
-      const m = step.message
-      const c = m.content[m.defaultLanguage]
-      const first = (c as { subject?: string; title?: string; text?: string }).subject ?? (c as { title?: string }).title ?? (c as { text?: string }).text ?? ''
-      return `${CHANNEL_LABEL[m.channel]} · ${first ? first.slice(0, 40) : 'no content'}${m.controlGroupShare ? ` · CG ${m.controlGroupShare}%` : ''}`
+    case 'delivery': {
+      const d = step.delivery
+      return `${CHANNEL_LABEL[d.channel]} · ${ctx.contentName(d.contentId) ?? 'no content'}`
     }
     case 'wait':
       return `${step.wait.amount} ${step.wait.unit}`
@@ -266,5 +231,3 @@ export function oneLineSummary(step: Step, ctx: { eventName: (id: string) => str
       return 'End of journey'
   }
 }
-
-export const LANG_LABEL: Record<Language, string> = { fr: 'FR', en: 'EN' }
