@@ -126,7 +126,7 @@ export function layoutGraph(graph: Graph, orientation: Orientation, sizeOf?: (n:
 }
 
 /** Anchor points and a cubic path for an edge. Splits fan their outlets along the exit side. */
-export function edgePath(from: Placed, to: Placed, orientation: Orientation, index: number, count: number): { d: string; mid: { x: number; y: number }; labelAt: { x: number; y: number } } {
+export function edgePath(from: Placed, to: Placed, orientation: Orientation, index: number, count: number, labelT = 0.5): { d: string; mid: { x: number; y: number }; labelAt: { x: number; y: number } } {
   const spread = (size: number) => (count <= 1 ? 0 : ((index + 1) / (count + 1) - 0.5) * size * 0.9)
   let x1: number, y1: number, x2: number, y2: number
   if (orientation === 'LR') {
@@ -152,5 +152,5 @@ export function edgePath(from: Placed, to: Placed, orientation: Orientation, ind
       y: mt * mt * mt * y1 + 3 * mt * mt * t * c1.y + 3 * mt * t * t * c2.y + t * t * t * y2,
     }
   }
-  return { d, mid: at(0.5), labelAt: at(count > 1 ? 0.78 : 0.3) }
+  return { d, mid: at(0.5), labelAt: at(labelT) }
 }

@@ -121,9 +121,10 @@ export function Canvas(props: CanvasProps) {
       // the card itself is NODE_H tall; the stats strip hangs below it, so anchor on the card
       const fromCard = orientation === 'LR' ? { ...from, h: Math.min(from.h, NODE_H) } : from
       const toCard = orientation === 'LR' ? { ...to, h: Math.min(to.h, NODE_H) } : to
-      return { e, ...edgePath(fromCard, toCard, orientation, idx, sib.length) }
+      // labels sit mid-edge where fanned paths are apart; in the editor the + is there, so move them toward the target
+      return { e, ...edgePath(fromCard, toCard, orientation, idx, sib.length, editable ? 0.72 : 0.5) }
     })
-  }, [graph.edges, layout, orientation])
+  }, [graph.edges, layout, orientation, editable])
 
   return (
     <div className={`canvas-wrap ${panRef.current ? 'panning' : ''}`} ref={wrapRef} onMouseDown={onMouseDown} onMouseMove={onMouseMove} onMouseUp={onMouseUp} onMouseLeave={() => (panRef.current = null)}>
