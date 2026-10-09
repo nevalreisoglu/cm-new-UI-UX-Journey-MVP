@@ -32,6 +32,7 @@ export interface Offer {
   id: string
   name: string
   code: string
+  link: string
 }
 
 export interface Policy {
@@ -65,7 +66,7 @@ export interface Contact {
 
 export type StepType =
   | 'event'
-  | 'message'
+  | 'delivery'
   | 'wait'
   | 'segmentSplit'
   | 'engagementSplit'
@@ -99,14 +100,24 @@ export interface PushContent {
   text: string
   link: string
 }
-export type MessageContent = EmailContent | SmsContent | PushContent
+export type ContentBody = EmailContent | SmsContent | PushContent
 
-export interface MessageConfig {
+/** A ready-made, single-language content item (managed outside the journey layer). */
+export interface ContentItem {
+  id: string
   channel: Channel
-  defaultLanguage: Language
-  content: Record<Language, MessageContent>
+  name: string
+  language: Language
+  /** preselected when a Delivery switches to this channel */
+  isDefault?: boolean
+  body: ContentBody
+}
+
+/** Delivery step [4]: one channel, one ready-made content item, offer and rules. */
+export interface DeliveryConfig {
+  channel: Channel
+  contentId: string | null
   offerId: string | null
-  controlGroupShare: number
   policyId: string | null
   sendToUnsubscribed: boolean
 }
@@ -136,7 +147,7 @@ export interface ControlGroupConfig {
 
 export type StepConfig =
   | { type: 'event'; event: EventConfig }
-  | { type: 'message'; message: MessageConfig }
+  | { type: 'delivery'; delivery: DeliveryConfig }
   | { type: 'wait'; wait: WaitConfig }
   | { type: 'segmentSplit'; segmentSplit: SegmentSplitConfig }
   | { type: 'engagementSplit'; engagementSplit: EngagementSplitConfig }

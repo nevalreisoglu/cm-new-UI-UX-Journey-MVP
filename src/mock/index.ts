@@ -17,6 +17,7 @@ export function seed(): World {
   return { journeys, contacts, states }
 }
 
-export { EVENTS, eventById, CONTACT_FIELDS } from './events'
-export { SEGMENTS, OFFERS, POLICIES, USERS, userByRole, userName } from './lists'
+export { EVENTS, eventById, CONTACT_FIELDS, OFFER_FIELDS } from './events'
+export { CONTENTS, contentById, contentsFor, defaultContentFor } from './contents'
+export { SEGMENTS, OFFERS, POLICIES, USERS, offerById, userByRole, userName } from './lists'
 export { NOW } from './journeys'

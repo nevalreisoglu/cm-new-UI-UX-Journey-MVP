@@ -21,11 +21,11 @@ export function FlowTab({ journey, version, states, onStep, highlightSteps, high
         <span><b>{st.entered}</b> entered</span>
         <span><b>{st.waiting}</b> waiting</span>
         <span><b>{st.exited}</b> exited</span>
-        {s.type === 'message' && (
+        {s.type === 'delivery' && (
           <>
             <span><b>{st.sent}</b> sent</span>
             <span className={st.skipped ? 'skip' : ''}><b>{st.skipped}</b> skipped</span>
-            {s.message.channel !== 'sms' && <span><b>{st.opened}</b> opened</span>}
+            {s.delivery.channel !== 'sms' && <span><b>{st.opened}</b> opened</span>}
             <span><b>{st.clicked}</b> clicked</span>
           </>
         )}

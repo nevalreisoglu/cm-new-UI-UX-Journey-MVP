@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import type { Channel, Orientation, Step, StepType } from '../../model/types'
+import type { Orientation, Step, StepType } from '../../model/types'
 import { edgePath, layoutGraph, NODE_H, NODE_W, type Graph, type GraphEdge, type GraphNode } from '../../model/layout'
-import { Icon } from '../../ui/Icon'
-import { ADDABLE, paletteFor, type PaletteItem } from './stepTypes'
+import { CHANNEL_ICON, Icon } from '../../ui/Icon'
+import { ADDABLE, kindLabel, paletteFor, type PaletteItem } from './stepTypes'
 
 // Canvas (centre) — auto-layout only, two orientations, zoom / pan / fit, collapse a split path,
 // three ways to add a step (drag from palette onto a connection, "+" on a connection, and
@@ -189,8 +189,8 @@ export function Canvas(props: CanvasProps) {
                     setHoverEdge(null)
                     const raw = ev.dataTransfer.getData(DRAG_MIME)
                     if (!raw) return
-                    const { type, channel } = JSON.parse(raw) as { type: StepType; channel?: Channel }
-                    onAddStep?.(e, paletteFor(type, channel))
+                    const { type } = JSON.parse(raw) as { type: StepType }
+                    onAddStep?.(e, paletteFor(type))
                   }}
                 >
                   <Icon name="plus" size={12} />
@@ -212,7 +212,8 @@ export function Canvas(props: CanvasProps) {
               </div>
             )
           const step = n.step!
-          const item = paletteFor(step.type, step.type === 'message' ? step.message.channel : undefined)
+          const item = paletteFor(step.type)
+          const icon = step.type === 'delivery' ? CHANNEL_ICON[step.delivery.channel] : item.icon
           const cls = [
             'node',
             `t-${item.tint}`,
@@ -234,9 +235,9 @@ export function Canvas(props: CanvasProps) {
               }}
             >
               <div className="node-card">
-                <span className="node-ic"><Icon name={item.icon} size={15} /></span>
+                <span className="node-ic"><Icon name={icon} size={15} /></span>
                 <div className="node-txt">
-                  <div className="node-kind">{item.group === 'Message' ? item.label : item.group === 'Split' ? `${item.label} split` : item.label}{n.status && <span className={`node-st st-${n.status}`}>{n.status}</span>}</div>
+                  <div className="node-kind">{kindLabel(item)}{n.status && <span className={`node-st st-${n.status}`}>{n.status}</span>}</div>
                   <div className="node-name" title={step.name}>{step.name}</div>
                   <div className="node-sum" title={summary(step)}>{summary(step)}</div>
                 </div>

@@ -69,7 +69,7 @@ export interface ChannelStats {
 
 export function channelStats(states: ContactState[], versions: Version[]): Record<Channel, ChannelStats> {
   const chanOf = new Map<string, Channel>()
-  for (const v of versions) for (const s of v.steps) if (s.type === 'message') chanOf.set(s.id, s.message.channel)
+  for (const v of versions) for (const s of v.steps) if (s.type === 'delivery') chanOf.set(s.id, s.delivery.channel)
   const out: Record<Channel, ChannelStats> = {
     email: { sent: 0, opened: 0, clicked: 0, skipped: 0 },
     sms: { sent: 0, opened: 0, clicked: 0, skipped: 0 },
@@ -83,6 +83,24 @@ export function channelStats(states: ContactState[], versions: Version[]): Recor
       else if (l.kind === 'opened') out[c].opened++
       else if (l.kind === 'clicked') out[c].clicked++
       else if (l.kind === 'skipped') out[c].skipped++
+    }
+  return out
+}
+
+/** Sends attributed to an offer (item 4): offer id → sent / opened / clicked. */
+export function offerStats(states: ContactState[], versions: Version[]): Record<string, ChannelStats> {
+  const offerOf = new Map<string, string>()
+  for (const v of versions) for (const s of v.steps) if (s.type === 'delivery' && s.delivery.offerId) offerOf.set(s.id, s.delivery.offerId)
+  const out: Record<string, ChannelStats> = {}
+  for (const st of states)
+    for (const l of st.log) {
+      const o = offerOf.get(l.stepId)
+      if (!o) continue
+      const row = (out[o] ??= { sent: 0, opened: 0, clicked: 0, skipped: 0 })
+      if (l.kind === 'sent') row.sent++
+      else if (l.kind === 'opened') row.opened++
+      else if (l.kind === 'clicked') row.clicked++
+      else if (l.kind === 'skipped') row.skipped++
     }
   return out
 }

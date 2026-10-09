@@ -23,7 +23,7 @@ export function Palette({ onDragState, onClickItem }: { onDragState: (d: boolean
                 disabled={isEntry}
                 title={isEntry ? 'Every journey has exactly one Event entry' : `Drag “${p.label}” onto a connection`}
                 onDragStart={(e) => {
-                  e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ type: p.type, channel: p.channel }))
+                  e.dataTransfer.setData(DRAG_MIME, JSON.stringify({ type: p.type }))
                   e.dataTransfer.effectAllowed = 'copy'
                   setDrag(p.key)
                   onDragState(true)

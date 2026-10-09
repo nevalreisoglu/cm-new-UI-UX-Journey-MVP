@@ -68,9 +68,9 @@ export function EngagementSplitPanel({ step, mode, onChange, version }: PanelPro
         <label>Linked message</label>
         <select value={step.engagementSplit.messageStepId ?? ''} disabled={!full} onChange={(e) => onChange({ ...step, engagementSplit: { messageStepId: e.target.value || null } })} style={{ borderColor: step.engagementSplit.messageStepId ? undefined : 'var(--bad)' }}>
           <option value="">Choose a message…</option>
-          {candidates.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.type === 'message' ? s.message.channel.toUpperCase() : ''}</option>)}
+          {candidates.map((s) => <option key={s.id} value={s.id}>{s.name} · {s.type === 'delivery' ? s.delivery.channel.toUpperCase() : ''}</option>)}
         </select>
-        <span className="hint">{candidates.length ? 'Only messages earlier on this path can be linked.' : 'No message before this step yet — add one first.'}</span>
+        <span className="hint">{candidates.length ? 'Only deliveries earlier on this path can be linked.' : 'No delivery before this step yet — add one first.'}</span>
       </div>
       <div className="col" style={{ gap: 4 }}>
         <div className="pathrow"><span className="pl">Opened</span><span className="small muted">Opened the message (email / push).</span></div>
