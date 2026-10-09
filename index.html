@@ -560,6 +560,9 @@ body{font-size:14px;line-height:1.43}
 .stub rect{fill:var(--green-soft);stroke:var(--brand-lilac);stroke-dasharray:4 3}
 .stub text{font-size:11px;fill:var(--brand-navy)}
 .stub{cursor:pointer}
+.ctools{position:absolute;right:12px;top:10px;z-index:5;display:flex;align-items:center;gap:2px;background:#fff;border:1px solid var(--line);border-radius:6px;padding:2px 6px 2px 2px;box-shadow:var(--shadow)}
+.ctools button{width:26px;height:26px;border:0;background:none;border-radius:4px;display:grid;place-items:center;color:var(--ink-2);cursor:pointer;padding:0}
+.ctools button:hover{background:var(--surface-2);color:var(--brand-navy)}
 /* step panel */
 .jinfo .ph{padding:12px 16px 8px;border-bottom:1px solid var(--line-2)}
 .jinfo .ph h3{font-size:15px;line-height:22px;flex:1;min-width:0}
@@ -1546,7 +1549,7 @@ function canvasFor(wrapId) { if (!CANVASES.has(wrapId)) CANVASES.set(wrapId, { v
 /* draw the graph into <svg class="canvas"> inside the wrap; opts: orientation, editable, selected, invalid(Set), stats(fn step→[[label,value,cls]…]), edgeStat(fn edge→string), highlight(Set of step ids), highlightEdges(Set of "from:key"), statusCls */
 function drawCanvas(wrapId, graph, opts) {
   const wrap = $(wrapId); if (!wrap) return; const cv = canvasFor(wrapId); cv.graph = graph; cv.opts = opts;
-  const extraH = opts.stats ? 20 : 0, cardH = NH + extraH;
+  const extraH = opts.stats ? 32 : 0, cardH = NH + extraH;
   const lay = layoutGraph(graph, opts.orientation, extraH); cv.layout = lay;
   const byFrom = {}; for (const e of graph.edges) (byFrom[e.from] ??= []).push(e);
   let edges = '', overlays = '';
@@ -1578,7 +1581,7 @@ function drawCanvas(wrapId, graph, opts) {
       ${n.status ? `<text class="dst" x="${NW - 8}" y="16" text-anchor="end" fill="${n.status === 'added' ? 'var(--ok)' : n.status === 'removed' ? 'var(--bad)' : 'var(--warn)'}">${n.status}</text>` : ''}
       <text class="n" x="10" y="43">${esc(trunc(s.name, 30))}</text>
       <text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 34))}</text>
-      ${stats ? `<rect class="statbg" x="0" y="${NH}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${NH + 14}">${stats.map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
+      ${stats ? `<rect class="statbg" x="0" y="${NH}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${NH + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${NH + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
       ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${NH / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
   }
@@ -1592,14 +1595,14 @@ function fitCanvasOf(wrapId) {
   const k = Math.min(1, (cw - 24) / cv.layout.width, (ch - 24) / cv.layout.height);
   cv.view = { k, x: (cw - cv.layout.width * k) / 2, y: Math.max(12, (ch - cv.layout.height * k) / 2) }; cv.fitted = true;
   wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`);
-  const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
+  const z = wrap.querySelector('.zoomlbl') ?? wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
 }
 function zoomCanvas(wrapId, f) {
   const wrap = $(wrapId), cv = CANVASES.get(wrapId); if (!wrap || !cv) return;
   const mx = wrap.clientWidth / 2, my = wrap.clientHeight / 2, k = Math.min(2.5, Math.max(.2, cv.view.k * f));
   cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k };
   wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`);
-  const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
+  const z = wrap.querySelector('.zoomlbl') ?? wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`;
 }
 /* pan by drag on the background, wheel zoom, click selects — wired once per wrap */
 function wireCanvas(wrapId, handlers = {}) {
@@ -1876,6 +1879,7 @@ function handleAct(act, arg, el, e) {
 
 /* ---- [1] version actions, journey settings, test send, View changes ----------------- */
 function handleVersionAct(act, arg, el, e) {
+  if (act.startsWith('m-')) { handleMonitorAct(act, arg, el, e); return; }
   const j = curJourney(), v = curVersion(); if (!j || !v) return;
   const done = (title, msg, cls) => { touch(j); renderEditor(); if (title) toast(title, msg, cls); };
   switch (act) {
@@ -1912,6 +1916,7 @@ function handleVersionAct(act, arg, el, e) {
       openModal(modalHtml(`v${v.no} · history`, `${v.rejectComment ? `<div class="note">Rejected: “${esc(v.rejectComment)}”</div>` : ''}<div class="vhist">${[...v.history].reverse().map(h => `<div><span>${fmtDate(h.at, true)}</span><span>${esc(h.text)} <span class="muted">· ${esc(userName(h.by))}</span></span></div>`).join('') || '<span class="muted">No history yet.</span>'}</div>`)); return;
     case 'settings': settingsModal(j); return;
     case 'test-send': testSendModal(j, v); return;
+    default: handleMonitorAct(act, arg, el, e);
   }
 }
 
@@ -1994,12 +1999,116 @@ function viewChangesModal(j, v) {
         ${entries.map(x => `<div class="de ${x.st}"><b>${esc(x.name)}</b><span class="muted">${esc(x.detail)}</span></div>`).join('') || '<div class="muted small">No differences found.</div>'}</div></div>`,
     `<button class="btn outline" data-act="modal-close">Close</button>${app.role === 'approver' ? `<button class="btn outline" data-act="v-reject">Reject…</button><button class="btn primary" id="vc-approve">${icon('check')} Approve and activate</button>` : ''}`), 'xl');
   if ($('vc-approve')) $('vc-approve').onclick = () => { closeModal(); handleVersionAct('v-approve'); };
-  wireCanvas('dwrap', {}); CANVASES.delete('dwrap'); wireCanvasReset('dwrap');
+  CANVASES.delete('dwrap'); wireCanvasReset('dwrap');
   drawCanvas('dwrap', buildGraph(union, { status, edgeStatus }), { orientation: j.orientation, version: union });
 }
-function wireCanvasReset(id) { const wrap = $(id); if (wrap) { delete wrap.dataset.wired; wireCanvas(id, {}); } }
+function wireCanvasReset(id, handlers = {}) { const wrap = $(id); if (wrap) { delete wrap.dataset.wired; wireCanvas(id, handlers); } }
 
-function renderMonitor() { crumb([{ label: 'Journey Monitor' }]); $('view-monitor').innerHTML = `<div class="card"><div class="card-h"><h2>Journey Monitor</h2></div></div>`; }
+/* ---- Screen 3 — Journey Monitor [6][2][1] ------------------------------------------ */
+const RANGES = [['7', 'Last 7 days', 7], ['30', 'Last 30 days', 30], ['90', 'Last 90 days', 90], ['all', 'All time', 0]];
+const STATUSES = ['Waiting', 'In step', 'Exited', 'Skipped', 'Control group'];
+function renderMonitor() {
+  const m = app.monitor; let j = JOURNEYS.find(x => x.id === m.journeyId); if (!j) { j = JOURNEYS[0]; m.journeyId = j?.id; }
+  crumb(Object.assign([{ label: 'Journey Monitor' }, { label: j?.name ?? '' }], { right: j ? `<span class="right"><button class="btn sm outline" data-act="go-editor" data-arg="${j.id}">${icon('journeys')} Open editor</button></span>` : '' }));
+  if (!j) { $('view-monitor').innerHTML = '<div class="card"><div class="empty">No journeys.</div></div>'; return; }
+  const vs = versionsOf(j.id); let v = vs.find(x => x.id === m.versionId) ?? primaryVersion(j); m.versionId = v?.id;
+  const days = RANGES.find(r => r[0] === m.range)[2], since = days ? iso(NOW.getTime() - days * DAY) : '';
+  const all = statesFor(j.id, null, since), states = v ? all.filter(s => s.versionId === v.id) : [];
+  const tabs = [['overview', 'Overview'], ['flow', `Flow <span class="cnt">v${v?.no ?? '—'}</span>`], ['contacts', `Contacts <span class="cnt">${states.length}</span>`]];
+  $('view-monitor').innerHTML = `
+    <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+      <div class="card-h" style="padding-bottom:6px"><h2>Journey Monitor</h2><p>Per-customer journey state, step statistics and the path of any single contact.</p></div>
+      <div class="toolrow" style="padding-top:0">
+        <label for="msel" style="color:var(--ink-2)">Journey</label><select id="msel">${JOURNEYS.map(x => `<option value="${x.id}" ${x.id === j.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
+        ${pill(j.contactList)}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}
+        <div class="grow"></div>
+        ${m.tab !== 'overview' ? `<label for="mvsel" style="color:var(--ink-2)">Version</label><select id="mvsel">${vs.map(x => `<option value="${x.id}" ${x.id === v?.id ? 'selected' : ''}>v${x.no} · ${STATUS_LABEL[x.status]}${x.note ? ` · ${esc(x.note)}` : ''}</option>`).join('')}</select>` : ''}
+        <label for="mrange" style="color:var(--ink-2)">Entries</label><select id="mrange">${RANGES.map(r => `<option value="${r[0]}" ${m.range === r[0] ? 'selected' : ''}>${r[1]}</option>`).join('')}</select>
+      </div>
+      <div class="card-b mon" style="padding-top:0">
+        <div class="tabs">${tabs.map(([k, l]) => `<button class="${m.tab === k ? 'on' : ''}" data-act="m-tab" data-arg="${k}">${l}</button>`).join('')}<span class="muted small" style="align-self:center;margin-left:auto">Entries ${since ? `since ${since.slice(0, 10)}` : 'all time'} · as of ${NOW.toISOString().slice(0, 16).replace('T', ' ')} UTC</span></div>
+        ${m.tab === 'overview' ? overviewHtml(j, vs, all) : m.tab === 'flow' ? `<div style="display:flex;flex:1;min-height:0;flex-direction:column;gap:6px"><div class="small muted">Read-only canvas of v${v.no}. Click a step to open its contacts.</div><div class="canvas-wrap" id="mwrap"><svg class="canvas" xmlns="http://www.w3.org/2000/svg"></svg><div class="ctools"><button data-act="m-zoom-out" title="Zoom out">${icon('zoomout')}</button><button data-act="m-zoom-in" title="Zoom in">${icon('zoomin')}</button><button data-act="m-fit" title="Fit">${icon('fit')}</button><span class="zoomlbl num small muted">100 %</span></div></div></div>` : contactsHtml(j, v, states)}
+      </div>
+    </div>`;
+  $('msel').onchange = e => { m.journeyId = e.target.value; m.versionId = null; m.step = ''; m.contactId = null; CANVASES.delete('mwrap'); renderMonitor(); };
+  if ($('mvsel')) $('mvsel').onchange = e => { m.versionId = e.target.value; m.step = ''; CANVASES.delete('mwrap'); renderMonitor(); };
+  $('mrange').onchange = e => { m.range = e.target.value; renderMonitor(); };
+  if (m.tab === 'flow' && v) {
+    const cv = canvasFor('mwrap'); cv.fitted = false;
+    const st = stepStats(v, states);
+    const stats = s => { const o = st[s.id]; if (!o) return null; if (s.type === 'exit') return [['exited', o.entered]]; if (s.type === 'controlGroup') return [['in group', o.entered]]; const base = [['entered', o.entered], ['waiting', o.waiting], ['exited', o.exited]]; if (s.type === 'delivery') base.push(['sent', o.sent], ['skipped', o.skipped, o.skipped ? 'skip' : ''], ...(s.config.channel !== 'sms' ? [['opened', o.opened]] : []), ['clicked', o.clicked]); return base; };
+    const edgeStat = e => { const o = st[e.from], s = stepOf(v, e.from); if (!o || !s || !isSplit(s)) return undefined; const n = o.paths[e.key] ?? 0; return `${n} · ${pct(n, o.entered - o.waiting)} %`; };
+    wireCanvasReset('mwrap', { onSelect: id => { m.step = id; m.tab = 'contacts'; renderMonitor(); } });
+    drawCanvas('mwrap', buildGraph(v), { orientation: j.orientation, version: v, stats, edgeStat });
+  }
+  if (m.tab === 'contacts') wireContacts(j, v, states);
+}
+/* zoom label for the monitor canvas lives inside the wrap */
+function overviewHtml(j, vs, all) {
+  const t = totals(all), ch = channelStats(all, vs), of = offerStats(all, vs);
+  const perV = Object.fromEntries(vs.map(v => [v.id, totals(all.filter(s => s.versionId === v.id))]));
+  const tile = (l, v, s) => `<div class="stat tile"><div class="l">${l}</div><div class="v num">${fmtNum(v)}</div><div class="s">${s}</div></div>`;
+  return `<div class="col" style="gap:16px;overflow:auto;flex:1;min-height:0">
+    <div class="stats" style="padding:0">${tile('Entered', t.entered, 'contacts received the event')}${tile('In journey now', t.inside, 'waiting or in a step')}${tile('Exited', t.exited, `${pct(t.exited, t.entered)} % of entered`)}${tile('Skipped', t.skipped, 'exited after an unreachable step')}${tile('Control group', t.control, 'kept for comparison')}</div>
+    <div><div class="sec">Channel breakdown</div><table class="tbl" style="margin-top:6px"><thead><tr><th>Channel</th><th class="r">Sent</th><th class="r">Opened</th><th class="r">Clicked</th><th class="r">Skipped</th><th>Open rate</th></tr></thead><tbody>
+      ${CHANNELS.map(c => { const s = ch[c], any = s.sent + s.skipped > 0; return `<tr ${any ? '' : 'style="color:var(--ink-3)"'}><td><span class="hrow">${chanIcon(c)} ${CHANNEL_LABEL[c]}</span></td><td class="r num">${fmtNum(s.sent)}</td><td class="r num">${c === 'sms' ? '<span class="muted" title="SMS has no open tracking">—</span>' : fmtNum(s.opened)}</td><td class="r num">${fmtNum(s.clicked)}</td><td class="r num" ${s.skipped ? 'style="color:var(--bad)"' : ''}>${fmtNum(s.skipped)}</td><td style="width:220px">${c !== 'sms' && any ? `<span class="hrow"><span class="pbar" style="width:120px"><i style="width:${pct(s.opened, s.sent)}%"></i></span><span class="small num">${pct(s.opened, s.sent)} %</span></span>` : ''}</td></tr>`; }).join('')}
+    </tbody></table></div>
+    ${Object.keys(of).length ? `<div><div class="sec">Offers <span class="muted small" style="font-weight:400">— sends attributed to the Delivery's offer</span></div><table class="tbl" style="margin-top:6px"><thead><tr><th>Offer</th><th>Code</th><th class="r">Sent</th><th class="r">Opened</th><th class="r">Clicked</th><th>Click rate</th></tr></thead><tbody>
+      ${OFFERS.filter(o => of[o.id]).map(o => { const s = of[o.id]; return `<tr><td class="t1">${esc(o.name)}</td><td class="mono">${o.code}</td><td class="r num">${fmtNum(s.sent)}</td><td class="r num">${fmtNum(s.opened)}</td><td class="r num">${fmtNum(s.clicked)}</td><td style="width:220px"><span class="hrow"><span class="pbar" style="width:120px"><i style="width:${pct(s.clicked, s.sent)}%"></i></span><span class="small num">${pct(s.clicked, s.sent)} %</span></span></td></tr>`; }).join('')}</tbody></table></div>` : ''}
+    <div><div class="sec">Versions</div><table class="tbl" style="margin-top:6px"><thead><tr><th>Version</th><th>Status</th><th>Note</th><th>Activated by / when</th><th class="r">Entered</th><th class="r">Inside</th><th class="r">Exited</th></tr></thead><tbody>
+      ${vs.map(v => { const s = perV[v.id]; return `<tr><td class="t1">v${v.no}</td><td>${vpill(v.status)}</td><td>${esc(v.note) || '<span class="muted">—</span>'}</td><td>${v.approvedBy ? `${esc(userName(v.approvedBy))} <span class="muted">· ${fmtDate(v.approvedAt, true)}</span>` : '<span class="muted">Not activated</span>'}</td><td class="r num">${fmtNum(s.entered)}</td><td class="r num">${fmtNum(s.inside)}</td><td class="r num">${fmtNum(s.exited + s.skipped + s.control)}</td></tr>`; }).join('')}</tbody></table></div>
+  </div>`;
+}
+function contactsHtml(j, v, states) {
+  const m = app.monitor, q = m.q.trim().toLowerCase(), byId = new Map(CONTACTS.map(c => [c.id, c]));
+  const rows = states.filter(s => { const c = byId.get(s.contactId); if (!c) return false; if (m.step && s.stepId !== m.step) return false; if (m.status && s.status !== m.status) return false; if (q && !(c.id.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || (c.phone ?? '').replace(/\s/g, '').includes(q.replace(/\s/g, '')))) return false; return true; }).sort((a, b) => b.receivedAt.localeCompare(a.receivedAt));
+  const stepName = id => stepOf(v, id)?.name ?? '?';
+  return `<div class="col" style="gap:10px;flex:1;min-height:0">
+    <div class="hrow wrap" style="gap:10px">
+      <label class="search-in">${icon('search')}<input id="mc-q" placeholder="Search by contact ID, email or phone" value="${esc(m.q)}"></label>
+      <select class="inp" id="mc-step" style="width:240px"><option value="">All steps</option>${v.steps.map(s => `<option value="${s.id}" ${m.step === s.id ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select>
+      <select class="inp" id="mc-status" style="width:170px"><option value="">All statuses</option>${STATUSES.map(s => `<option ${m.status === s ? 'selected' : ''}>${s}</option>`).join('')}</select>
+      ${m.step || m.status || m.q ? `<button class="btn link sm" data-act="m-clear">Clear</button>` : ''}<span class="muted small right">${rows.length} contact${rows.length === 1 ? '' : 's'}</span>
+    </div>
+    <div style="overflow:auto;flex:1;min-height:0"><table class="tbl" id="mc-table"><thead><tr><th>Contact</th><th>Event</th><th>Received at</th><th>Current step</th><th>Status</th><th>Last delivery result</th></tr></thead><tbody>
+      ${rows.length ? rows.slice(0, 200).map(s => { const c = byId.get(s.contactId); return `<tr class="row" data-act="m-contact" data-arg="${s.id}"><td><div class="t1">${esc(c.firstName)} ${esc(c.lastName)}</div><div class="t2">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ''} · ${c.language.toUpperCase()}</div></td><td>${esc(eventById(j.eventId)?.name ?? '')}</td><td class="nw">${fmtDate(s.receivedAt, true)}</td><td>${esc(stepName(s.stepId))}</td><td>${pill(s.status, CONTACT_STATUS_CLS[s.status])}</td><td>${esc(s.lastDelivery)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">No contacts match.</td></tr>'}
+    </tbody></table>${rows.length > 200 ? `<div class="empty">Showing the first 200 of ${rows.length}. Narrow the search to see others.</div>` : ''}</div></div>`;
+}
+function wireContacts(j, v, states) {
+  const m = app.monitor;
+  $('mc-q').oninput = e => { m.q = e.target.value; const p = e.target.selectionStart; renderMonitor(); $('mc-q').focus(); $('mc-q').setSelectionRange(p, p); };
+  $('mc-step').onchange = e => { m.step = e.target.value; renderMonitor(); };
+  $('mc-status').onchange = e => { m.status = e.target.value; renderMonitor(); };
+}
+/* "Where is this contact now?" — payload, timeline, path highlighted on a mini canvas */
+function contactPanel(stateId) {
+  const st = CONTACT_STATES.find(s => s.id === stateId); if (!st) return;
+  const j = JOURNEYS.find(x => x.id === st.journeyId), v = VERSIONS.find(x => x.id === st.versionId), c = CONTACTS.find(x => x.id === st.contactId);
+  const stepName = id => stepOf(v, id)?.name ?? '?';
+  const visited = st.history.filter(l => l.event === 'entered').map(l => l.stepId), hl = new Set(visited), hlE = new Set();
+  for (let i = 0; i < visited.length - 1; i++) { const e = v.edges.find(x => x.from === visited[i] && x.to === visited[i + 1]); if (e) hlE.add(`${e.from}:${e.label}`); }
+  $('drawer-host').innerHTML = `<div class="drawer-bg" data-act="m-close-panel"></div><div class="drawer" role="dialog" aria-modal="true">
+    <div class="dh"><div><h3>Where is ${esc(c.firstName)} ${esc(c.lastName)} now?</h3><div class="small muted">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ' · no phone'}${c.pushToken ? '' : ' · no push token'} · ${c.language.toUpperCase()} · ${esc(c.plan)}</div></div>
+      <div class="right hrow" style="gap:8px"><span class="small muted">Now at</span><b>${esc(stepName(st.stepId))}</b>${pill(st.status, CONTACT_STATUS_CLS[st.status])}<button class="x" data-act="m-close-panel" aria-label="Close">×</button></div></div>
+    <div class="db"><div class="dl">
+      <div><div class="sec" style="padding-top:0">Event · ${esc(eventById(j.eventId)?.name ?? '')}</div><dl class="kv" style="margin-top:6px"><dt>received at</dt><dd>${fmtDate(st.receivedAt, true)}</dd><dt>version</dt><dd>v${v.no}</dd>${Object.entries(st.payload).map(([k, x]) => `<dt class="mono">${k}</dt><dd style="word-break:break-all">${esc(x)}</dd>`).join('')}</dl></div>
+      <div><div class="sec">Timeline</div><div class="timeline" style="margin-top:8px">${st.history.map(l => `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`).join('')}${st.status === 'Waiting' || st.status === 'In step' ? `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${st.status === 'Waiting' ? 'Waiting for the next step' : 'In step — being processed'}<small>${esc(stepName(st.stepId))}</small></span></div>` : ''}</div></div>
+    </div><div class="dr"><div class="small muted" style="padding:0 4px 8px">The contact’s path is highlighted on v${v.no}.</div><div class="canvas-wrap" id="pwrap"><svg class="canvas" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div></div>`;
+  CANVASES.delete('pwrap'); wireCanvasReset('pwrap');
+  drawCanvas('pwrap', buildGraph(v), { orientation: j.orientation, version: v, highlight: hl, highlightEdges: hlE });
+}
+function handleMonitorAct(act, arg) {
+  const m = app.monitor;
+  switch (act) {
+    case 'm-tab': m.tab = arg; if (arg !== 'contacts') m.step = ''; renderMonitor(); return;
+    case 'm-clear': m.q = ''; m.step = ''; m.status = ''; renderMonitor(); return;
+    case 'm-contact': contactPanel(arg); return;
+    case 'm-close-panel': $('drawer-host').innerHTML = ''; return;
+    case 'm-zoom-in': zoomCanvas('mwrap', 1.2); return;
+    case 'm-zoom-out': zoomCanvas('mwrap', 1 / 1.2); return;
+    case 'm-fit': fitCanvasOf('mwrap'); return;
+  }
+}
 
 /* ---- global event delegation: every control carries data-act ---- */
 document.addEventListener('click', e => {
