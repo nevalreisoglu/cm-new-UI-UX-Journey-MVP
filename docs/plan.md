@@ -1,91 +1,93 @@
-# Build plan — Etiya CM Journey MVP prototype
+# Plan — single-file rebuild (`index.html`)
 
-Written before coding (working method, step 1). Updated only where the build deviated.
+Written before coding (working method, step 1). Replaces the React build plan.
 
-## Folder structure
+## Files
 
 ```
-src/
-  main.tsx                 entry
-  App.tsx                  shell: top bar, left nav, hash router, toasts
-  app/                     router (hash based), store (React context + reducer), toasts, current user/role
-  model/
-    types.ts               Journey, Version, Step, Outlet, Contact, ContactState, EventDef, lists
-    graph.ts               step graph helpers: build graph, parents, add/remove step on a connection, subtree
-    layout.ts              dagre auto-layout (LR / TB)
-    validation.ts          editor validation rules (roadmap item 1)
-    diff.ts                version diff for the approver "View changes" (item 1)
-    stats.ts               step / channel / version stats derived from contact states (item 6)
-    render.ts              placeholder rendering for test send (item 7)
-  mock/
-    events.ts              fixed event catalogue (item 3)
-    lists.ts               segments, offers, policies, users (dropdown-only lists)
-    contacts.ts            a few hundred generated contacts, FR/EN, some without phone / push token
-    journeys.ts            the six journeys of the brief, with their versions
-    simulate.ts            deterministic walk of contacts through a version → ContactState + event log
-    index.ts               seed() builds the in-memory world once
-  screens/
-    journeys/              Screen 1: journey list, new-journey dialog
-    editor/                Screen 2: version bar, palette, canvas, step panels, validation bar,
-                           settings, test send, diff view
-    monitor/               Screen 3: overview, flow, contacts, contact drawer
-  ui/                      small primitives (Button, Pill, Tabs, Field, Modal, Icon, …)
-  styles/                  tokens.css (Etiya brand kit, copied from the CM prototype), base.css, components.css
-docs/plan.md               this file
-README.md                  how to run, what is where, open questions
+index.html          the prototype: CSS + HTML shell + JS in four marked sections
+tests/              Playwright checks (own package.json, like CM-New-UI-UX2): open each view,
+                    no console errors, screenshots at 1280 and 1440 px → tests/screenshots/
+docs/plan.md        this file
+docs/decisions.md   product decisions made while building
+CHANGELOG.md        one entry per version
+README.md           how to open, what is where, open questions
+CLAUDE.md           the brief (project memory)
 ```
 
-## Data model
+Deleted on start-over: `src/`, `public/`, `package.json`, `package-lock.json`, `vite.config.ts`,
+`tsconfig*.json`, `.oxlintrc.json`, `node_modules/`, `dist/`.
 
-- **Journey** — container: id, name, description, contactList (customers | prospects),
-  overrideUnsubscribe, testUserIds, orientation (LR | TB, saved per journey), versions[],
-  updatedAt / updatedBy.
-- **Version** — number, status (draft | pending | active | closing | closed), note, steps[],
-  submitted / activated / closed by + at, rejectComment, history[] ("Content updated by X at T",
-  "Approved by …", …).
-- **Step** — id, type, name, `outlets[]` and `config`.
-  - Every step has `outlets: { id, label, next: stepId | null }[]`. Single-outlet steps
-    (event, message, wait) have one outlet; splits have several; control group and exit have none.
-    An outlet whose `next` is null is a path without Exit (drawn dashed, flagged by validation).
-  - Types: `event` (eventId, entryMode single | batch, createContactIfMissing) ·
-    `delivery` (channel email | sms | push, contentId of a ready-made single-language content
-    item, offerId, policyId, sendToUnsubscribed) · `wait` (amount, unit) ·
-    `segmentSplit` (segment per outlet + fixed Remaining outlet) ·
-    `engagementSplit` (messageStepId; outlets Opened / Clicked / Remaining) ·
-    `shuffleSplit` (percent per outlet) · `controlGroup` (name) · `exit`.
-  - The graph is a tree (one parent per step, no merge paths), which keeps "add on a
-    connection", delete, collapse and validation simple.
-- **Contact** — id, type, names, email, phone?, pushToken?, language, plan.
-- **ContactState** — journeyId, versionId, contactId, event payload, receivedAt, currentStepId,
-  status (waiting | in_step | exited | skipped | control), lastDeliveryResult, log[] of
-  { at, stepId, kind: entered | waited | sent | opened | clicked | skipped | exited | control }.
-  Every statistic on the Monitor is derived from these logs, so step counts add up by construction.
-- **EventDef** — id, name, payload fields (name, type, sample value).
-- **ContentItem** — id, channel, name, language, isDefault, body (email / sms / push fields).
+## index.html sections, in order
+
+1. `<style>` — `:root` tokens copied verbatim from CM-New-UI-UX2 (brand, chrome wash, `--t-*`
+   step tints, fonts, shadow); shell (`.app`, `.topbar`, `.nav`, `.crumb`, `.view`, footer);
+   components (`.card`, `.panel`, `.btn*`, `.pill`, `.chip`, `.fld`, `.tbl`, `.tabs`, `.chsel`,
+   `.toast`, `.modal`); journey builder (`.jb`, `.palette`, `.ctool`, `.canvas-wrap`, `.node`,
+   `.jinfo`) with the same class names; the few new pieces (version bar, stats strip, diff
+   colours, contact timeline) styled from the same tokens.
+2. `<body>` — `header.topbar` (logo ETIYA Marketing Cloud, burger, Prototype chip, Role view
+   select, Reset demo data, user chip) · `nav.nav` (Journeys · Journey Monitor, `data-view`) ·
+   `main` with three `.view` containers (`#view-journeys`, `#view-editor`, `#view-monitor`) ·
+   footer · modal host · toast host.
+3. `<script>` in four marked blocks:
+   - **DATA** — seeded RNG; `EVENTS`, `SEGMENTS` (incl. Langue Français / English, Account
+     created today and the two "Français + account today" / "English + account today" segments
+     the abandonment journey needs), `OFFERS` (name, code, link), `POLICIES`, `CONTENT_ITEMS`
+     (3–5 per channel, one language each, one `isDefault` per channel), `CONTACTS` (~400, FR/EN,
+     some without phone / push token, some unsubscribed, masked ids `CUS-****4821`), `JOURNEYS`,
+     `VERSIONS` (steps + edges), `CONTACT_STATES` generated by walking contacts through each
+     version (so every count is derived). `resetDemo()` rebuilds all of it.
+   - **DOMAIN** — pure: `VERSION_TRANSITIONS` table → `actionsFor(version, role)`;
+     `validateVersion(v)`; `canEdit(version, step, field)` (Active/Closing → only
+     `delivery.contentId`); `diffVersions(a, b)`; `layoutTree(version, orientation)` (rank by
+     depth, order by subtree size, no library); `stepStats(version)` and `pathStats(version)`
+     from `CONTACT_STATES`; `renderPlaceholders(text, values)`; tree helpers (parent, subtree,
+     insert on edge, remove step, earlier deliveries on the path).
+   - **STATE** — `app = {role, view, journeyId, versionId, selectedStepId, tab, filters, zoom,
+     pan, collapsed:Set, monitor:{journeyId, range, tab, stepFilter, contactId}}`;
+     `applyRole()` via `data-roles`; `go(view, params)`.
+   - **RENDER** — `renderJourneyList()`, `renderEditor()` (= `versionBarHtml` + `paletteHtml` +
+     `canvasHtml` + `panelHtml(step)` + `validationHtml`), `renderMonitor()` (overview / flow /
+     contacts + contact side panel), modal helpers (`openModal(html)`), `toast()`. Events are
+     delegated from `main` by `data-act` attributes; every control has an `id` or `data-*` hook.
+
+## Data model (as in the brief)
+
+`Journey`, `Version` (with `steps[]` + `edges[]`, `history[]`), `Step {id, type, name, config}`,
+`Edge {from, to, label}`, `ContactState {contactId, versionId, stepId, status, history[]}`.
+Step `config` per type: event `{eventId, entryMode, createContact}` · delivery `{channel,
+contentId, offerId, policyId, sendToUnsubscribed}` · wait `{amount, unit}` · segmentSplit
+`{segments: [segmentId…]}` (edges labelled by segment name + "Remaining") · engagementSplit
+`{deliveryStepId}` (edges Opened / Clicked / Remaining) · shuffleSplit `{paths: [{label, pct}]}` ·
+controlGroup `{name}` · exit `{}`. A dangling path is a step with a missing edge for one of its
+expected labels.
 
 ## Screens
 
-1. Journey list (tabs Draft / Pending approval / Live / Past, search, filters, row actions,
-   "+ New journey").
-2. Journey editor (version bar, palette, auto-layout canvas, step panels, validation bar,
-   settings, test send, approver diff view).
-3. Monitor (overview, flow with stats strip, contacts with "Where is this contact now?").
+Journey list (tabs with counts, search, filters, "+ New journey" modal) · Editor (version bar
+from `VERSION_TRANSITIONS`, palette, auto-layout canvas with Zoom out / Zoom in / Fit / Validate /
+Horizontal / Vertical toolbar, right `aside.card.panel.jinfo`, validation list, Journey settings
+and Test send modals, View changes modal) · Journey Monitor (journey select + date range;
+Overview, Flow, Contacts; contact side panel with mini canvas).
 
-## Order of work (one commit per step, app runnable after each)
+## Order of work (one commit per step, file opens cleanly after each)
 
-a. shell, navigation, role switcher, mock data, simulator
+a. shell copied from CM-New-UI-UX2 + tokens + role switch + Reset demo data + all mock data
 b. journey list
-c. editor: canvas auto-layout, palette, "+", step panels, validation
-d. versions and approval incl. diff view
-e. monitor
-f. polish against the CM prototype look
+c. editor: layout, canvas, palette, "+", panels, validation
+d. versions and approval (incl. View changes)
+e. monitor (overview, flow stats, contacts, contact panel)
+f. side-by-side visual check against CM-New-UI-UX2 at 1280 / 1440 px; Playwright checks in
+   `tests/`; CHANGELOG, decisions, README open questions
 
-## Deviations from the plan
-- Steps (c) and (d) were built together: the version bar and the lock mode shape the editor.
-- Deleting a split keeps its first path instead of removing the whole subtree (see README › Open questions).
-- Spec change (2026-10-09): Email / SMS / Push steps became one Delivery step with ready-made
-  single-language content, a Create → Channel → Details stepper, no control-group share, offer
-  placeholders with attribution, and language handled by a Segment split. Seed journeys gained
-  FR / EN branches.
-- The reference prototype's host was not reachable from the build environment; its source repository
-  (`CM-New-UI-UX2`, `index.html` + `docs/brand.md`) was used instead to copy the tokens and component styles.
+## Points I will decide unless told otherwise
+
+- "+ New journey" is a modal again (name, event, single / batch, contact list), as this brief says.
+- Delivery stepper order follows the brief: 1 Channel · 2 Content · 3 Details ("Create" is the
+  stepper's first screen title; it holds the delivery name and the Channel cards).
+- Payment failed v3 = v2 + one Push step on one path + the wait changed 2 → 1 days.
+- Journeys with FR / EN paths duplicate the steps after the language split (tree, no merge).
+- Deleting a split keeps its first path; deleting a single-outlet step splices it out.
+- The Playwright `tests/` use the Chromium already available; `tests/package.json` pins
+  `@playwright/test` for the team.

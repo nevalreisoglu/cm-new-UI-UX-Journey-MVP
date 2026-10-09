@@ -1,192 +1,247 @@
-# Etiya CM — Journey MVP prototype
+# Etiya CM — Journey MVP prototype (project memory)
+
+Read this before touching anything.
 
 ## What this is
-A working, front-end-only prototype of the **journey layer** for Etiya Campaign Management (CM).
+A **click-through, working prototype** of the journey layer for Etiya Campaign Management (CM).
 It covers exactly the seven P1 roadmap items below, so that every Fizz flow (Canadian telco,
 French/English, ~2M contacts, today on Symplify) that belongs in a journey can be built here.
-Audience: internal reference for engineering/UX first, then a customer demo. Behaviour and rules
-matter as much as looks.
+Audience: the internal team (engineering / UX reference) first, then the customer.
+The code is a reference for the development team, not the product.
+
+Owner: Neval Reisoğlu (Senior PM, CM).
+
+## Start-over note
+This repo previously held a React + TypeScript build. **Delete it** (src/, package.json,
+vite/ts configs, node_modules) and start from the structure below. Nothing from it is reused.
+
+## Hard constraints (same as the CM-New-UI-UX2 prototype)
+- **One file.** Everything lives in `index.html`: HTML + CSS + vanilla JS. No build step, no
+  bundler, no framework, no npm runtime dependencies.
+- **No external requests** except the Google Fonts stylesheet (Roboto + IBM Plex Mono). It must
+  render from a `file://` URL, offline. Deployed to Vercel as a static file.
+- **No browser storage** (`localStorage` and friends). State lives in JS variables; a reload
+  resets the demo. Add a small "Reset demo data" action in the top bar.
+- **Brand:** "Etiya" / logo "ETIYA Marketing Cloud", exactly as in CM-New-UI-UX2.
+- **Demo data carries no real names.** Fictional names, masked ids (`CUS-****4821`),
+  `@example.com`, `+1 5XX …`. No real Fizz copy.
+- Every interactive element has a stable `id` or `data-*` hook for the Playwright scripts. Do
+  not rename hooks without updating the scripts in the same commit.
+
+## Look and feel — copy, do not invent
+Reference: GitHub `nevalreisoglu/CM-New-UI-UX2`, file `index.html`
+(live: https://cm-new-ui-ux-2.vercel.app/). Clone it and copy:
+- the whole `:root` token block (`--brand-navy`, `--brand-lilac`, `--cta`, `--sec`, `--bg`,
+  `--surface`, `--line`, `--ok`/`--warn`/`--bad`, `--t-entry`, `--t-delivery`, `--t-timer`,
+  `--t-wait` … and their `-i` ink pairs), font stacks `--sans` / `--mono`;
+- the shell: `header.topbar` (logo, menu toggle, "Prototype" chip, Role view select, user chip),
+  `nav.nav` (left menu with section labels), breadcrumb, footer;
+- card / panel styles (`.card`, `.panel`), buttons (primary teal CTA, navy, grey, ghost),
+  form fields, selects, chips/pills, tables, tabs, toasts, modals;
+- the Journey Builder look: palette cards with coloured icons, canvas grid background, node
+  cards, connectors, toolbar (Zoom out / Zoom in / Fit / Undo / Redo / Validate /
+  Horizontal / Vertical), right-side info panel (`aside.card.panel.jinfo`).
+Use the same class names where the meaning is the same. Do not restyle; new components must
+look like they came from that file.
 
 ## Product rules that frame everything
 - **Journey = per-customer and event-triggered.** Every journey starts from an event.
   Segment-based, scheduled sends are campaigns and are **not** part of this prototype.
 - Event-type campaigns no longer exist; a one-step event flow is a journey
   (Event → Delivery → Exit).
-- No project folders. No simulation / "advance 1 day". No segment entry.
-- **Content is single-language.** A Delivery picks one ready-made content item; language is
-  split with a Segment split (*Langue Français* / *Langue English* paths), never inside content.
-- **Hold-outs only via Shuffle split + Control group step.** A Delivery has no control-group share.
-
-## Stack and look
-- Vite + React + TypeScript. No backend: all state in memory, seeded from one mock module
-  (`src/mock/`). Deployable to Vercel as a static site.
-- Visual language: follow the existing CM prototype (https://cm-new-ui-ux-2.vercel.app/, source
-  repo `CM-New-UI-UX2`). Tokens are copied into `src/styles/tokens.css`; do not invent a new style.
-- UI text in English; sample content in French and English.
-- Keep dependencies small (`@dagrejs/dagre` for auto-layout). Do not add a UI kit.
+- **Delivery is not linked to a campaign.** It picks ready-made content; content is managed
+  elsewhere (not in this prototype).
+- **Language is handled by a Segment split** (Langue Français / Langue English paths), not by
+  content variants. Each content item is in one language.
+- Hold-outs only via **Shuffle split + Control group step** (no control-group share on Delivery).
+- No project folders. No simulation / "send event" / "advance 1 day". No segment entry.
+  No content page.
 
 ## Roadmap items → what the prototype must show
 | # | Roadmap item | Must show |
 |---|---|---|
-| 1 | Journey object + version management | journey as container; versions Draft / Pending approval / Active / Closing / Closed; version note; copy to new version; active structure locked, only the Delivery content choice editable; approval on activation |
+| 1 | Journey object + version management | journey as container; versions Draft / Pending approval / Active / Closing / Closed; version note; copy to new version; active structure locked, Delivery content choice editable; approval on activation |
 | 2 | Per-customer journey state | each contact's current step and status (Waiting / In step / Exited / Skipped / Control group); Exit node |
 | 3 | Event-triggered entry | single and batch API entry; create contact if missing; payload fields as placeholders; "processed within 60 s" |
-| 4 | Delivery step parity with campaigns | one Delivery step type (Email / SMS / Push, one channel each); ready-made single-language content; offer (name, code, link as placeholders; sends attributed to the offer); communication rules (policy); override unsubscribe; skip when channel unreachable |
-| 5 | Flow nodes | segment split (+ fixed Remaining; used for language), engagement split (opened / clicked + Remaining), shuffle split (%), control group, duration wait |
-| 6 | Monitoring | step stats on canvas; version, channel and offer breakdown; per-contact event log; single-contact lookup |
+| 4 | Delivery step parity with campaigns | one Delivery step, channel chosen inside (Email / SMS / Push); content picked from a list (channel default preselected); offer; communication rules (policy); override unsubscribe; skip when channel unreachable |
+| 5 | Flow nodes | segment split (+ fixed Remaining), engagement split (opened / clicked + Remaining), shuffle split (%), control group, duration wait |
+| 6 | Monitoring | step stats on canvas; version and channel breakdown; per-contact event log; single-contact lookup |
 | 7 | Management + test | journey list with status tabs; contact list (Customers / Prospects); test send |
 
-Every screen and behaviour below maps to one of these; keep that mapping visible in code
-comments where helpful.
+## Architecture in one page
+Inside `index.html`, keep the JS in clearly marked sections, in this order:
+1. **DATA** — mock constants: `EVENTS` (catalogue with payload fields), `SEGMENTS`, `OFFERS`,
+   `POLICIES`, `CONTENT_ITEMS` (per channel, single language, one `isDefault` per channel),
+   `CONTACTS`, `JOURNEYS`, `VERSIONS`, `CONTACT_STATES`. Generated with a seeded RNG so numbers
+   are stable across reloads.
+2. **DOMAIN** — pure functions, no DOM:
+   - `VERSION_TRANSITIONS`: one table of `{from, to, role, action}`; the version bar's buttons
+     are derived from it, never hard-coded.
+   - `validateVersion(v)` → list of `{stepId, message}`.
+   - `canEdit(version, step, field)` → the single rule for what is editable in Active/Closing
+     (only the `contentId` of Delivery steps).
+   - `diffVersions(a, b)` → `{added, removed, changed}` by step id (+ edges).
+   - `layoutTree(version, orientation)` → x/y per step (journeys are trees; no merge).
+   - `stepStats(version)` → counts computed **from `CONTACT_STATES`**, never typed by hand.
+3. **STATE** — `app = {role, view, journeyId, versionId, selectedStepId, orientation, zoom, …}`.
+4. **RENDER** — one `render<View>()` per view: `renderJourneyList()`, `renderEditor()`,
+   `renderMonitor()`; small helpers return HTML strings. Re-render the view on state change.
+
+Data model:
+- `Journey {id, name, eventId, entryMode: 'single'|'batch', contactList: 'Customers'|'Prospects',
+  overrideUnsubscribe, testUsers[], orientation}`
+- `Version {id, journeyId, no, status, note, createdBy, createdAt, submittedBy, submittedAt,
+  approvedBy, approvedAt, rejectComment, history[], steps[], edges[]}`
+- `Step {id, type: 'event'|'delivery'|'wait'|'segmentSplit'|'engagementSplit'|'shuffleSplit'|
+  'controlGroup'|'exit', name, config}`
+- `Edge {from, to, label}` — label is the path name ("A", "Remaining", "Opened", "90 %" …).
+- `ContactState {contactId, versionId, stepId, status, history: [{stepId, event, at, detail}]}`
+
+Roles: `marketer`, `approver` via `data-roles`, applied by `applyRole()` (same pattern as
+CM-New-UI-UX2). Views via `data-view` on the left nav.
 
 ## Navigation
-Left nav: **Journeys** (list) · **Monitor** (opens from a journey). Top right: role switcher
-**Marketer / Approver**.
+Left nav: **Journeys** · **Journey Monitor**. Top bar: Role view (Marketer / Approver),
+Reset demo data.
 
 ## Screen 1 — Journey list  [1][7]
 - Tabs: Draft · Pending approval · Live · Past (with counts). "Pending approval" is the
   approver's queue.
 - Search; filters: event, channel, contact list.
-- Columns: name (+ "Override unsubscribe" badge when on), event, channels (icons), active
-  version + note (second line if a version is Closing or Pending), entered last 30 days,
-  last modified + by.
-- Row actions: open, duplicate, open Monitor.
-- "+ New journey": opens the editor directly with an Event entry and an Exit already placed
-  (defaults: first event, single entry, Customers; the Event entry step is selected). Name and
-  contact list are set in Settings, event and single / batch in the Event entry panel.
+- Columns: name (+ "Override unsubscribe" chip when on), event, channels (icons), active version
+  + note (second line if a version is Closing), entered last 30 days, last modified + by.
+- Row actions: Open, Duplicate, Monitor.
+- "+ New journey" (modal): name, event, single / batch, contact list → opens the editor with an
+  Event entry and an Exit already placed, as version 1 Draft.
 
 ## Screen 2 — Journey editor
 ### Version bar  [1]
-- Version selector: number, status chip, note, activated by / when.
-- Actions by state and role:
-  - Draft (Marketer): Submit for approval (asks for a short note) · Delete
+- Version select: number, status chip, note, activated by / when.
+- Buttons derived from `VERSION_TRANSITIONS`:
+  - Draft (Marketer): Submit for approval (modal asks for a note) · Delete draft
   - Pending approval (Marketer): Withdraw
   - Pending approval (Approver): View changes · Approve and activate · Reject (comment required)
   - Active: Copy to new version · Stop → Closing or Closed
   - Closing: Close
-- Active / Closing: banner "Structure locked — only the content choice of a Delivery can be
-  changed"; palette and "+" hidden; all other panel fields read-only.
-- Also in the bar: Settings, Test send, layout toggle (left→right / top→bottom).
+- Active / Closing: banner "Structure locked — only delivery content can be changed"; palette
+  and "+" hidden; panels read-only except Delivery → Content.
+- Also: Journey settings, Test send.
 
 ### Approval rules  [1]
-- Activating a new version requires approval (first activation and any copy whose structure
-  changed).
-- **The only change allowed in an Active version without approval is the Delivery content
-  choice.** It is logged in the version history ("Content changed (step): A → B").
-- Stopping (Closing / Closed) needs no approval.
-- On approve: version → Active; previous Active → Closing. On reject: version → Draft, reject
-  comment shown on the version.
-- Approver "View changes": canvas diff vs. the current Active version — added steps green,
-  removed red, changed amber — plus a side list of changes and the marketer's note.
+- Activating a version requires approval.
+- Changing a Delivery's content in an Active version needs **no** approval; it is appended to
+  `version.history` ("Content changed by X at T").
+- Stop (Closing / Closed) needs no approval.
+- Approve: version → Active; previous Active → Closing. Reject: version → Draft with the comment
+  shown on the version.
+- **View changes** (approver): canvas of the pending version with steps coloured vs. the current
+  Active one — added green (`--ok`), removed red (`--bad`, shown as ghost cards), changed amber
+  (`--warn`) — plus a side list of changes and the marketer's note.
 
-### Journey settings  [1][7]
-Name, description, contact list (Customers / Prospects), override unsubscribe (confirmation
-dialog; badge on the journey), test users.
+### Journey settings (modal)  [1][7]
+Name, description, contact list (Customers / Prospects), override unsubscribe (confirmation;
+chip on the journey), test users.
 
 ### Palette (left)
-Entry: Event · Message: Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle ·
+Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle ·
 Action: Control group, Exit.
 
 ### Canvas (centre)
-- **Auto-layout only** (no free positioning). Two orientations with a toggle; default
-  **left→right**; orientation saved per journey.
-- Zoom, pan, fit to screen; collapse / expand a split path.
-- Three ways to add a step: drag from the palette onto a connection; "+" on a connection
-  (menu of step types); "Add next step" inside the selected step's panel.
-- Step card: icon (channel icon for a Delivery), name, one-line summary; red border when
+- **Auto-layout only** (`layoutTree`), no free positioning. Horizontal (default) / Vertical
+  toggle, saved per journey. Zoom out / Zoom in / Fit via CSS transform; pan by drag on the
+  background. Collapse / expand a split path.
+- Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
+  step types); "Add next step" in the selected step's panel.
+- Node card: coloured type header (tokens `--t-*`), name, one-line summary; red outline when
   invalid. A path ending without Exit is drawn dashed.
 
-### Step panels (right)
-- **Event entry [3]:** event (from the catalogue), single / batch, "create contact if missing",
-  payload field list (each copyable as a placeholder), "API code" with sample single and batch
-  requests, info line "Processed within 60 s". Batch entry is API only (no file upload).
-- **Delivery [4]:** a 3-step stepper **Create → Channel → Details**, no campaign link.
-  - Create: delivery name (+ summary of the choices).
-  - Channel: Email / SMS / Push cards (one channel per Delivery); Content = dropdown of
-    ready-made content items for that channel, channel default preselected, read-only preview
-    with sample values, not editable here.
-  - Details: offer (optional; its name, code and link become `{{offer_name}}`, `{{offer_code}}`,
-    `{{offer_link}}`; sends are attributed to the offer), communication rules (policy from list),
-    "Send even to unsubscribed" (visible only when the journey setting is on), info line
-    "Contacts who can't be reached on this channel skip this step and continue."
-  - No language variants, no control-group share.
+### Step panels (right, `aside.card.panel.jinfo`)
+- **Event entry [3]:** event (catalogue), single / batch, "Create contact if missing", payload
+  field list (each copyable as `{{field}}`), "API code" (sample single and batch request,
+  mono font), info "Processed within 60 s". Batch is API only.
+- **Delivery [4]:** one channel per Delivery. Stepper like CM's delivery plan
+  (Create → Channel → Details), no campaign field:
+  1. Channel: cards Email / SMS / Push.
+  2. Content: select from `CONTENT_ITEMS` for that channel, default preselected; read-only
+     preview (Email: subject, preheader, body · SMS: text + length · Push: title, text, link)
+     and the placeholders it uses.
+  3. Details: offer (optional; its name, code and link become placeholders and sends are
+     attributed to it); communication rules (policy); "Send even to unsubscribed" (only when
+     the journey setting is on); info "Contacts who can't be reached on this channel skip this
+     step and continue."
+  Node summary: channel icon + content name (e.g. "Email · Abandon – reminder FR").
 - **Duration wait [5]:** N hours or days after the previous step.
-- **Segment split [5]:** ordered segment list (add, remove, reorder); **Remaining** path is
-  always present and cannot be removed. Language paths use the segments *Langue Français* /
-  *Langue English*.
-- **Engagement split [5]:** linked delivery (only earlier deliveries on the path); Opened /
-  Clicked + Remaining.
+- **Segment split [5]:** ordered segments (add, remove, move up/down); **Remaining** always
+  present, not removable.
+- **Engagement split [5]:** linked Delivery (only earlier Deliveries on the path);
+  Opened / Clicked + Remaining.
 - **Shuffle split [5]:** paths with %, "Split evenly", must total 100.
-- **Control group [5]:** name; info line "Contacts stop here and are kept for comparison."
+- **Control group [5]:** name; info "Contacts stop here and are kept for comparison."
 - **Exit:** no settings.
 
-### Validation bar (bottom)  [1]
-Blocks Submit for approval. Checks: no entry; split without segment; shuffle not 100; engagement
-split without linked delivery; delivery without content; path without Exit. Clicking an issue
-selects the step.
+### Validation  [1]
+"Validate" in the toolbar and automatically before Submit (blocking). Checks: no entry; split
+without segment; shuffle ≠ 100; engagement split without linked Delivery; Delivery without
+channel or content; path without Exit. Each issue is clickable and selects the step.
 
 ### Test send  [7]
-Pick a Delivery step and a test user, edit the sample payload, Send → toast with the content
-rendered (contact, payload and offer placeholders filled). Contacts do not move on the canvas.
+Modal: Delivery step, test user, editable sample payload → Send → toast with the rendered
+preview. Nothing moves on the canvas.
 
-## Screen 3 — Monitor  [6][2][1]
-Per journey, three tabs; date-range filter applies to all.
-1. **Overview:** totals (entered, in journey now, exited, skipped, control group); channel
-   breakdown (Email / SMS / Push: sent, opened, clicked, skipped); offers (sends attributed to
-   each offer: sent, opened, clicked); versions table (version, status, note, activated by /
-   when, entered / inside / exited).
-2. **Flow:** read-only canvas of the selected version; stats strip under each step
-   (entered · waiting · exited; deliveries also sent · skipped · opened · clicked); count and %
-   per split path. Clicking a step opens Contacts filtered to that step.
-3. **Contacts:** search by ID / email / phone; filters: step, status. Columns: contact, event,
-   received at, current step, status, last delivery result. Clicking a contact opens
-   **"Where is this contact now?"**: event payload, step-by-step timeline (entered, waited,
-   sent, opened / skipped, exited) and the contact's path highlighted on the canvas.
+## Screen 3 — Journey Monitor  [6][2][1]
+Journey select + date range; three tabs.
+1. **Overview:** totals (entered, in journey now, exited, skipped); channel breakdown (Email /
+   SMS / Push: sent, opened, clicked, skipped); versions table (version, status, note,
+   activated by / when, entered / inside / exited).
+2. **Flow:** read-only canvas of the selected version; stats strip under each node
+   (entered · waiting · exited; Delivery also sent · skipped · opened · clicked); count and %
+   on each split path. Clicking a node opens Contacts filtered to it.
+3. **Contacts:** search by id / email / phone; filters: step, status. Columns: contact, event,
+   received at, current step, status, last delivery result. Row click → side panel
+   **"Where is this contact now?"**: payload, timeline (entered, waited, sent, opened /
+   skipped, exited), path highlighted on a mini canvas.
 
-## Mock data (`src/mock/`)
-- **Event catalogue** (fixed, no admin screen): order_abandoned (device_name, cart_url, price),
-  account_created (plan_name, activation_date), device_back_in_stock (device_name,
-  product_url), payment_failed (amount, due_date, pay_url), plan_changed (old_plan, new_plan).
-- **Content items** (`contents.ts`): ready-made, one language each, per channel, one default
-  per channel. Placeholders: contact fields, payload fields, offer fields.
-- **Segments, offers, policies:** short fixed lists used only in dropdowns (no pages).
-  Segments include *Langue Français* / *Langue English*; offers carry name, code and link.
-- **Contacts:** a few hundred generated contacts with language FR/EN, some without phone or
-  push token (to produce skips). Generic names only.
-- **Journeys** (together they show every roadmap item):
+## Mock data
+- `EVENTS`: order_abandoned (device_name, cart_url, price), account_created (plan_name,
+  activation_date), device_back_in_stock (device_name, product_url), payment_failed (amount,
+  due_date, pay_url), plan_changed (old_plan, new_plan).
+- `SEGMENTS` include `Langue Français`, `Langue English`, `Account created today`.
+- `CONTENT_ITEMS`: per channel 3–5 single-language items, one default per channel.
+- `CONTACTS`: a few hundred; FR/EN; some without phone or push token (to create skips).
+- `JOURNEYS` (together they cover every roadmap item):
   | Journey | State | Shows |
   |---|---|---|
-  | Device order abandonment | Live; v14 Active ("V14 – new template"), v13 Closing | batch event, language split, segment split "account created today" + Remaining, payload placeholders, offer |
+  | Device order abandonment | Live; v14 Active ("V14 – new template"), v13 Closing | batch event; segment split Français / Français + account today / English / English + account today / Remaining; one Delivery per path; payload placeholders |
   | Device back in stock | Live | single event, Prospects list, override unsubscribe |
-  | Welcome – account created | Live; v2 Active ("V2 – add control group") | shuffle 90/10 → control group, language split, email with offer, wait 3 days, engagement split → Push / SMS, skipped contacts |
-  | Payment failed – reminder | Pending approval; v3 (a push reminder added per language vs. v2) | approval flow and diff view |
+  | Welcome – account created | Live; v2 Active ("V2 – add control group") | segment split FR / EN, shuffle 90/10 → control group, email Delivery with offer, wait 3 days, engagement split → Push / SMS, skipped contacts |
+  | Payment failed – reminder | Pending approval; v3 (one step added, one wait changed vs. v2) | approval and View changes |
   | Plan change – confirmation | Draft | validation errors |
   | Summer roaming promo | Past | closed versions |
-- Realistic, consistent numbers (step counts add up across splits).
-- Placeholder FR/EN copy only; no real Fizz content.
 
 ## Out of scope
-Campaigns, segment builder, offer / policy / content management pages, content editor, real
-integrations, authentication, simulation, project folders, merge paths, webhooks, set attribute,
-audience sync, advanced waits, export, anomaly detection.
+Campaigns, segment builder, offer / policy / content pages, content editing, content language
+variants, simulation, project folders, merge paths, webhooks, set attribute, audience sync,
+advanced waits, export, anomaly detection, real integrations, authentication.
 
 ## Working method
-1. Before coding, write a short plan: folder structure, data model (Journey, Version, Step,
-   Contact, ContactState, Event), screens, order of work. Show it and wait for OK.
-2. Build in this order, keeping the app runnable and deployable after each step and committing
-   per step:
-   a. shell, navigation, role switcher, mock data;
+1. Before coding, write a short plan (sections of `index.html`, data model, render functions,
+   order of work). Show it and wait for OK.
+2. Build in this order; keep the file opening cleanly after each step; commit per step:
+   a. shell copied from CM-New-UI-UX2 + tokens + role switch + mock data;
    b. journey list;
-   c. editor: canvas auto-layout, palette, "+", step panels, validation;
-   d. versions and approval (incl. diff view);
-   e. monitor (overview, flow stats, contacts, contact timeline);
-   f. polish against the CM prototype look.
-3. When a rule above is ambiguous, pick the simpler behaviour and list it under
-   "Open questions" in the README instead of inventing features.
+   c. editor: layout, canvas, palette, "+", panels, validation;
+   d. versions and approval (incl. View changes);
+   e. monitor (overview, flow stats, contacts, contact panel);
+   f. side-by-side visual check against CM-New-UI-UX2.
+3. Add Playwright checks in `tests/` like CM-New-UI-UX2 (open each view, no console errors,
+   screenshots at 1280 and 1440 px). Look at the screenshots — they catch what the console
+   does not.
+4. Keep a `CHANGELOG.md`; record product decisions in `docs/decisions.md`.
+5. When a rule here is ambiguous, pick the simpler behaviour and list it under
+   "Open questions" in the README — do not invent features.
 
-## Change log of the spec
-- 2026-10-09: Email / SMS / Push palette items replaced by one Delivery step with a
-  Create → Channel → Details stepper and ready-made single-language content; language split via
-  Segment split; control-group share removed from Delivery; offer name / code / link as
-  placeholders with send attribution; only the Delivery content choice is editable on Active
-  versions. "+ New journey" opens the canvas directly.
+## Do not
+- Do not add a framework, bundler, router or npm runtime dependency.
+- Do not invent a new visual style; copy CM-New-UI-UX2.
+- Do not add anything from "Out of scope", even as a disabled placeholder.
+- Do not hard-code stats; derive them from `CONTACT_STATES`.
