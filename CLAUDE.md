@@ -156,6 +156,10 @@ Shuffle · Action: Control group, Exit.
   step types); "Add next step" in the selected step's panel. A connector also carries a "×"
   that removes it together with the steps after it; the path stays open (dashed) until a step
   or an Exit is added.
+- **Connect by drag:** every card except Exit / Control group has an orange out port; drag it
+  onto another card to connect. An open path of the source is used first, otherwise a parallel
+  branch is added; the target's previous incoming connection is left open. Loops and connecting
+  into the Event entry are refused.
 - **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
   more than one outgoing connection: the "+" menu offers *In sequence* / *Parallel* when the
   source allows it, the panel has "Add parallel branch", and "×" on the branch removes it. Contacts take every branch at the same time. Edges of parallel branches carry

@@ -564,6 +564,9 @@ body{font-size:14px;line-height:1.43}
 .eplus path{stroke:var(--brand-navy);stroke-width:1.8;stroke-linecap:round}
 .eplus:hover circle,.eplus.hover circle{fill:var(--cta);stroke:var(--cta)}
 .eplus:hover path,.eplus.hover path{stroke:#fff}
+.node circle.port.out{fill:var(--orange);stroke:var(--orange);cursor:crosshair}
+.node circle.port.out:hover{r:7}
+.node.target rect.body{stroke:var(--cta-bright);stroke-width:3}
 .ecut{cursor:pointer}
 .ecut circle{fill:#fff;stroke:var(--line);stroke-width:1.5}
 .ecut path{stroke:var(--ink-3);stroke-width:1.6;stroke-linecap:round}
@@ -1672,6 +1675,7 @@ function drawCanvas(wrapId, graph, opts) {
       <text class="n" x="10" y="43">${esc(trunc(s.name, 32))}</text>
       ${rows ? `<foreignObject x="8" y="${FIELD_TOP}" width="${NW - 16}" height="${rows * FIELD_H}"><div xmlns="http://www.w3.org/1999/xhtml" class="nfields">${fields}</div></foreignObject>` : `<text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 36))}</text>`}
       ${stats ? `<rect class="statbg" x="0" y="${H}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${H + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${H + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
+      ${opts.editable && s.type !== 'exit' && s.type !== 'controlGroup' ? `<circle class="port out" data-port="${s.id}" cx="${opts.orientation === 'LR' ? NW : NW / 2}" cy="${opts.orientation === 'LR' ? Math.min(H, NH) / 2 : H}" r="5"><title>Drag to another step to connect</title></circle>` : ''}
       ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
       ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${H / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
@@ -1729,12 +1733,16 @@ function wireCanvas(wrapId, handlers = {}) {
   wrap.addEventListener('pointerdown', e => {
     if (e.button !== 0 || e.target.closest('select, input, label')) return;
     const node = e.target.closest('.node');
+    const port = e.target.closest('.port.out');
+    if (port && handlers.onConnect) { const p = cv.layout?.pos[port.dataset.port]; drag = { link: true, id: port.dataset.port, sx: e.clientX, sy: e.clientY, x0: p.x + +port.getAttribute('cx'), y0: p.y + +port.getAttribute('cy') }; wrap.setPointerCapture(e.pointerId); return; }
     if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
-    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse, .port')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
   wrap.addEventListener('pointermove', e => {
+    if (drag?.link) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; drag.moved = true; let tmp = wrap.querySelector('.tmpline'); if (!tmp) { tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); tmp.setAttribute('class', 'tmpline'); wrap.querySelector('.vp').appendChild(tmp); } tmp.setAttribute('d', `M${drag.x0},${drag.y0} L${drag.x0 + dx},${drag.y0 + dy}`); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.node'); wrap.querySelectorAll('.node.target').forEach(n => n.classList.remove('target')); if (over && over.dataset.id !== drag.id) over.classList.add('target'); return; }
     if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
     if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
   wrap.addEventListener('pointerup', e => {
+    if (drag?.link) { const d = drag; drag = null; skipClick = true; wrap.querySelector('.tmpline')?.remove(); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.node'); wrap.querySelectorAll('.node.target').forEach(n => n.classList.remove('target')); if (over && over.dataset.id !== d.id) handlers.onConnect(d.id, over.dataset.id); return; }
     if (drag) { const d = drag; drag = null; skipClick = true; if (d.moved) handlers.onMove(d.id, Math.round(d.x), Math.round(d.y)); else handlers.onSelect?.(d.id); return; }
     const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
   wrap.addEventListener('wheel', e => { e.preventDefault(); const r = wrap.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.min(2.5, Math.max(.2, cv.view.k * (e.deltaY < 0 ? 1.1 : .9))); cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k }; wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`; }, { passive: false });
@@ -1800,6 +1808,19 @@ function renderEditor() {
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
     onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },
+    onConnect: locked ? null : (fromId, toId) => {
+      const src = stepOf(v, fromId), dst = stepOf(v, toId); if (!src || !dst) return;
+      if (dst.type === 'event') { toast('Cannot connect', 'The Event entry has no incoming connection.', 'warn'); return; }
+      if (fromId === toId || descendants(v, toId).has(fromId)) { toast('Cannot connect', 'That would make a loop; journeys only go forward.', 'warn'); return; }
+      CUR_V = v;
+      let edge = v.edges.find(e => e.from === fromId && !e.to) // an open path first
+        ?? outletsOf(src, v).map(o => edgeOut(v, fromId, o.key) ?? E(fromId, null, o.key)).find(e => !e.to);
+      if (!edge) { if (!canParallel(src)) { toast('No free path', 'Every path of this step is already connected. Remove one with × first.', 'warn'); return; } addParallel(v, src); edge = v.edges[v.edges.length - 1]; }
+      if (!v.edges.includes(edge)) v.edges.push(edge);
+      const old = parentEdge(v, toId); let note = isParKey(edge.label) ? 'Added as a parallel branch.' : '';
+      if (old) { if (isParKey(old.label)) v.edges = v.edges.filter(e => e !== old); else old.to = null; note += ' Its previous connection is now open.'; }
+      edge.to = toId; relayout(v, j); touch(j); renderEditor(); toast('Connected', `${src.name} → ${dst.name}. ${note.trim()}`);
+    },
   });
   const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
   drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, inlineEdit: true, journey: j, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
