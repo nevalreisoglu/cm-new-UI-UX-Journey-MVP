@@ -563,6 +563,11 @@ body{font-size:14px;line-height:1.43}
 .eplus path{stroke:var(--brand-navy);stroke-width:1.8;stroke-linecap:round}
 .eplus:hover circle,.eplus.hover circle{fill:var(--cta);stroke:var(--cta)}
 .eplus:hover path,.eplus.hover path{stroke:#fff}
+.ecut{cursor:pointer}
+.ecut circle{fill:#fff;stroke:var(--line);stroke-width:1.5}
+.ecut path{stroke:var(--ink-3);stroke-width:1.6;stroke-linecap:round}
+.ecut:hover circle{stroke:var(--bad);fill:var(--bad-soft)}
+.ecut:hover path{stroke:var(--bad)}
 .canvas-wrap.dropping .eplus circle{r:17;stroke-dasharray:3 3;stroke:var(--cta-bright);fill:rgba(226,246,248,.9)}
 .endmark{fill:#fff;stroke:var(--bad);stroke-width:2;stroke-dasharray:3 3}
 .stub rect{fill:var(--green-soft);stroke:var(--brand-lilac);stroke-dasharray:4 3}
@@ -1627,8 +1632,9 @@ function drawCanvas(wrapId, graph, opts) {
     edges += `<g class="${cls}"><path d="${g.d}"/></g>`;
     const stat = opts.edgeStat?.(e); const label = e.label + (stat ? `  ${stat}` : '');
     if (label.trim()) { const lp = g.at(sib.length > 1 ? .2 + (idx / Math.max(1, sib.length - 1)) * (opts.editable ? .22 : .5) : .5), w = Math.max(30, label.length * 5.6 + 14); overlays += `<g class="edge ${e.status ? `st-${e.status}` : ''}"><rect x="${lp.x - w / 2}" y="${lp.y - 8}" width="${w}" height="16" rx="8"/><text x="${lp.x}" y="${lp.y + 3.5}" text-anchor="middle">${esc(e.label)}${stat ? `<tspan class="es"> ${esc(stat)}</tspan>` : ''}</text></g>`; }
-    if (opts.editable && !e.dangling) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
-    else if (opts.editable && e.dangling) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
+    if (opts.editable) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
+    // remove the connection: the steps hanging from it go with it, the path stays open
+    if (opts.editable && !e.dangling) { const c = g.at(.5 + (opts.orientation === 'LR' ? .0 : .0)), ox = opts.orientation === 'LR' ? 24 : 0, oy = opts.orientation === 'LR' ? 0 : 24; overlays += `<g class="ecut" data-edge="${e.id}" transform="translate(${c.x + ox},${c.y + oy})"><title>Remove this connection and the steps after it</title><circle r="8"/><path d="M-3,-3 L3,3 M3,-3 L-3,3"/></g>`; }
   }
   let nodes = '';
   for (const n of graph.nodes) {
@@ -1707,7 +1713,7 @@ function wireCanvas(wrapId, handlers = {}) {
     if (e.button !== 0 || e.target.closest('select, input, label')) return;
     const node = e.target.closest('.node');
     if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
-    if (e.target.closest('.node, .eplus, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
   wrap.addEventListener('pointermove', e => {
     if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
     if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
@@ -1723,6 +1729,7 @@ function wireCanvas(wrapId, handlers = {}) {
     const del = e.target.closest('.ndel'); if (del) { handlers.onDelete?.(del.dataset.del); return; }
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
+    const cut = e.target.closest('.ecut'); if (cut) { handlers.onCut?.(cut.dataset.edge); return; }
     const plus = e.target.closest('.eplus'); if (plus) { handlers.onPlus?.(plus.dataset.edge, e); return; }
     const node = e.target.closest('.node'); if (node) { handlers.onSelect?.(node.dataset.id); return; }
   });
@@ -1772,6 +1779,7 @@ function renderEditor() {
     onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
     onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type)),
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
+    onCut: edgeId => { const i = edgeId.indexOf(':'), from = edgeId.slice(0, i), key = edgeId.slice(i + 1), edge = edgeOut(v, from, key); if (!edge) return; const drop = new Set([edge.to, ...descendants(v, edge.to)]); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); if (drop.has(app.selectedStepId)) app.selectedStepId = null; touch(j); renderEditor(); toast('Connection removed', `${drop.size} step${drop.size === 1 ? '' : 's'} after it removed. The path is open — add a step or an Exit with “+”.`, 'warn'); },
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
     onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },

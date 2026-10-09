@@ -152,7 +152,9 @@ Shuffle · Action: Control group, Exit.
   toggle, saved per journey. Zoom out / Zoom in / Fit via CSS transform; pan by drag on the
   background. Collapse / expand a split path.
 - Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
-  step types); "Add next step" in the selected step's panel.
+  step types); "Add next step" in the selected step's panel. A connector also carries a "×"
+  that removes it together with the steps after it; the path stays open (dashed) until a step
+  or an Exit is added.
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
   outline when invalid. A path ending without Exit is drawn dashed. Cards grow to fit their
