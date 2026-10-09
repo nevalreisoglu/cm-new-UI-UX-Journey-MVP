@@ -88,7 +88,7 @@ Inside `index.html`, keep the JS in clearly marked sections, in this order:
    `renderMonitor()`; small helpers return HTML strings. Re-render the view on state change.
 
 Data model:
-- `Journey {id, name, eventId, entryMode: 'single'|'batch', contactList: 'Customers'|'Prospects',
+- `Journey {id, name, eventId, entryMode: 'single'|'batch', contactList: <datamart id>,
   overrideUnsubscribe, testUsers[], orientation}`
 - `Version {id, journeyId, no, status, note, createdBy, createdAt, submittedBy, submittedAt,
   approvedBy, approvedAt, rejectComment, history[], steps[], edges[]}`
@@ -111,8 +111,9 @@ Reset demo data.
 - Columns: name (+ "Override unsubscribe" chip when on), event, channels (icons), active version
   + note (second line if a version is Closing), entered last 30 days, last modified + by.
 - Row actions: Open, Duplicate, Monitor.
-- "+ New journey" (modal): name, event, single / batch, contact list → opens the editor with an
-  Event entry and an Exit already placed, as version 1 Draft.
+- "+ New journey" opens the editor directly: version 1 Draft with an Event entry and an Exit
+  placed, the Event entry selected. Event, single / batch and contact list are set in the Event
+  entry panel; the name in Journey settings.
 
 ## Screen 2 — Journey editor
 ### Version bar  [1]
@@ -139,7 +140,7 @@ Reset demo data.
   (`--warn`) — plus a side list of changes and the marketer's note.
 
 ### Journey settings (modal)  [1][7]
-Name, description, contact list (Customers / Prospects), override unsubscribe (confirmation;
+Name, description, contact list (an existing datamart), override unsubscribe (confirmation;
 chip on the journey), test users.
 
 ### Palette (left)
@@ -156,7 +157,8 @@ Action: Control group, Exit.
   invalid. A path ending without Exit is drawn dashed.
 
 ### Step panels (right, `aside.card.panel.jinfo`)
-- **Event entry [3]:** event (catalogue), single / batch, "Create contact if missing", payload
+- **Event entry [3]:** event (catalogue), single / batch, contact list (an existing datamart:
+  `DATAMARTS`, e.g. MAIN DATAMART, PROSPECT DATAMART), "Create contact if missing", payload
   field list (each copyable as `{{field}}`), "API code" (sample single and batch request,
   mono font), info "Processed within 60 s". Batch is API only.
 - **Delivery [4]:** one channel per Delivery. Stepper like CM's delivery plan
@@ -207,6 +209,8 @@ Journey select + date range; three tabs.
   due_date, pay_url), plan_changed (old_plan, new_plan).
 - `SEGMENTS` include `Langue Français`, `Langue English`, `Account created today`.
 - `CONTENT_ITEMS`: per channel 3–5 single-language items, one default per channel.
+- `DATAMARTS`: the contact lists a journey can target (MAIN DATAMART, PROSPECT DATAMART,
+  DEVICE WAITLIST, HOME INTERNET DATAMART); each maps to a subset of `CONTACTS`.
 - `CONTACTS`: a few hundred; FR/EN; some without phone or push token (to create skips).
 - `JOURNEYS` (together they cover every roadmap item):
   | Journey | State | Shows |

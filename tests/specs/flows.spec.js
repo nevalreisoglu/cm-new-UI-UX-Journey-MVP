@@ -7,10 +7,11 @@ test('new journey → build → validate → submit → approve → content-only
   const errors = await open(page);
   // + New journey (modal) opens the editor with Event entry + Exit, v1 Draft
   await page.click('#btn-new-journey');
-  await page.fill('#nj-name', 'Smoke test journey');
-  await page.click('#nj-create');
   await page.waitForTimeout(300);
   expect(await page.locator('.node').count()).toBe(2);
+  await expect(page.locator('#sp-dm')).toBeVisible(); // contact list (datamart) sits in the Event entry panel
+  await page.selectOption('#sp-dm', 'DM-3');
+  await expect(page.locator('#crumb')).toContainText('PROSPECT DATAMART');
   await expect(page.locator('#valbar')).toHaveClass(/ok/);
 
   // "+" on the connection → Delivery with the channel default preselected
@@ -122,8 +123,6 @@ test('test send renders offer placeholders; monitor drills from a step to its co
 test('reset demo data discards session changes', async ({ page }) => {
   await open(page);
   await page.click('#btn-new-journey');
-  await page.fill('#nj-name', 'Temporary');
-  await page.click('#nj-create');
   await page.click('#btn-reset');
   await page.waitForTimeout(200);
   expect(await page.locator('#jl-tabs button[data-arg="draft"] .cnt').innerText()).toBe('1');

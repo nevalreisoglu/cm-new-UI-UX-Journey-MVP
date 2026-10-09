@@ -740,6 +740,16 @@ const SEGMENTS = [
   { id: 'seg-recent-device', name: 'Bought a device in the last 90 days', description: 'Device order completed < 90 d' },
 ];
 const segById = id => SEGMENTS.find(s => s.id === id);
+/* contact lists = existing datamarts (catalogue is admin-owned; only the names are needed here) */
+const DATAMARTS = [
+  { id: 'DM-1', name: 'MAIN DATAMART', type: 'Customers', desc: 'One row per subscriber — profile, plan, usage, scores.', kind: 'Customers' },
+  { id: 'DM-3', name: 'PROSPECT DATAMART', type: 'Prospects', desc: 'Leads and web-shop visitors who are not customers yet.', kind: 'Prospects' },
+  { id: 'DM-4', name: 'DEVICE WAITLIST', type: 'Prospects', desc: 'Prospects who asked to be notified about a device.', kind: 'Prospects', filter: c => !!c.pushToken || !!c.phone },
+  { id: 'DM-5', name: 'HOME INTERNET DATAMART', type: 'Customers', desc: 'Subscribers with a Home Internet or bundle plan.', kind: 'Customers', filter: c => /Home/.test(c.plan) },
+];
+const dmById = id => DATAMARTS.find(d => d.id === id) ?? DATAMARTS[0];
+const dmName = id => dmById(id).name;
+const contactsOf = id => { const d = dmById(id); return CONTACTS.filter(c => c.kind === d.kind && (!d.filter || d.filter(c))); };
 const OFFERS = [
   { id: 'off-10-off', name: '10 $ off next device', code: 'DEV10', link: 'https://shop.example.com/offers/dev10' },
   { id: 'off-free-month', name: 'One month free', code: 'FREE1M', link: 'https://my.example.com/offers/free1m' },
@@ -947,12 +957,12 @@ function roamingBuild(v) {
 function seedJourneys() {
   const h = (d, by, text, hh) => ({ at: daysAgo(d, hh), by, text });
   const JOURNEYS = [
-    { id: 'j-abandon', name: 'Device order abandonment', description: 'Bring back customers who started a device order in the web shop and did not complete it.', eventId: 'order_abandoned', entryMode: 'batch', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(240), updatedAt: daysAgo(3, 14), updatedBy: M },
-    { id: 'j-backinstock', name: 'Device back in stock', description: 'Tell prospects who asked to be notified that a device is available again.', eventId: 'device_back_in_stock', entryMode: 'single', contactList: 'Prospects', overrideUnsubscribe: true, testUsers: [], orientation: 'LR', createdAt: daysAgo(120), updatedAt: daysAgo(21), updatedBy: M },
-    { id: 'j-welcome', name: 'Welcome – account created', description: 'Onboard new customers: welcome email with a gift, then a push or SMS depending on engagement.', eventId: 'account_created', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(150), updatedAt: daysAgo(12), updatedBy: A },
-    { id: 'j-payment', name: 'Payment failed – reminder', description: 'Remind customers whose recurring payment was declined, before service is interrupted.', eventId: 'payment_failed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(100), updatedAt: daysAgo(1, 16), updatedBy: M },
-    { id: 'j-planchange', name: 'Plan change – confirmation', description: 'Confirm a plan change and test two follow-up variants.', eventId: 'plan_changed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(2), updatedAt: daysAgo(0, 8), updatedBy: M },
-    { id: 'j-roaming', name: 'Summer roaming promo', description: 'Seasonal roaming offer for customers who changed plan during the summer.', eventId: 'plan_changed', entryMode: 'single', contactList: 'Customers', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(130), updatedAt: daysAgo(38), updatedBy: M },
+    { id: 'j-abandon', name: 'Device order abandonment', description: 'Bring back customers who started a device order in the web shop and did not complete it.', eventId: 'order_abandoned', entryMode: 'batch', contactList: 'DM-1', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(240), updatedAt: daysAgo(3, 14), updatedBy: M },
+    { id: 'j-backinstock', name: 'Device back in stock', description: 'Tell prospects who asked to be notified that a device is available again.', eventId: 'device_back_in_stock', entryMode: 'single', contactList: 'DM-3', overrideUnsubscribe: true, testUsers: [], orientation: 'LR', createdAt: daysAgo(120), updatedAt: daysAgo(21), updatedBy: M },
+    { id: 'j-welcome', name: 'Welcome – account created', description: 'Onboard new customers: welcome email with a gift, then a push or SMS depending on engagement.', eventId: 'account_created', entryMode: 'single', contactList: 'DM-1', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(150), updatedAt: daysAgo(12), updatedBy: A },
+    { id: 'j-payment', name: 'Payment failed – reminder', description: 'Remind customers whose recurring payment was declined, before service is interrupted.', eventId: 'payment_failed', entryMode: 'single', contactList: 'DM-1', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(100), updatedAt: daysAgo(1, 16), updatedBy: M },
+    { id: 'j-planchange', name: 'Plan change – confirmation', description: 'Confirm a plan change and test two follow-up variants.', eventId: 'plan_changed', entryMode: 'single', contactList: 'DM-1', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(2), updatedAt: daysAgo(0, 8), updatedBy: M },
+    { id: 'j-roaming', name: 'Summer roaming promo', description: 'Seasonal roaming offer for customers who changed plan during the summer.', eventId: 'plan_changed', entryMode: 'single', contactList: 'DM-1', overrideUnsubscribe: false, testUsers: [], orientation: 'LR', createdAt: daysAgo(130), updatedAt: daysAgo(38), updatedBy: M },
   ];
   const VERSIONS = [
     version('ab12', 'j-abandon', 12, 'closed', 'V12 – FR copy fix', abandonBuild(13), { createdAt: daysAgo(90), approvedAt: daysAgo(85), approvedBy: A, closedAt: daysAgo(38), history: [h(85, A, 'Approved and activated'), h(40, M, 'Stopped → Closing'), h(38, M, 'Closed')] }),
@@ -980,7 +990,7 @@ function simulateVersion(journey, v, contacts) {
   const plan = ENROLMENT[v.id]; if (!plan) return [];
   const [count, from, to] = plan;
   const rng = makeRng(hash01(v.id) * 1e9);
-  const pool = contacts.filter(c => c.kind === journey.contactList);
+  const pool = contactsOf(journey.contactList);
   const entry = v.steps.find(s => s.type === 'event'); if (!entry) return [];
   const stepOf = id => v.steps.find(s => s.id === id);
   const nextOf = (id, label) => v.edges.find(e => e.from === id && (label === undefined || e.label === label))?.to ?? null;
@@ -1080,7 +1090,7 @@ function resetDemo() {
   CONTACTS = generateContacts();
   const w = seedJourneys(); JOURNEYS = w.JOURNEYS; VERSIONS = w.VERSIONS;
   // test users: first contacts of each list
-  for (const j of JOURNEYS) j.testUsers = CONTACTS.filter(c => c.kind === j.contactList).slice(0, 3).map(c => c.id);
+  for (const j of JOURNEYS) j.testUsers = contactsOf(j.contactList).slice(0, 3).map(c => c.id);
   CONTACT_STATES = [];
   for (const j of JOURNEYS) for (const v of VERSIONS.filter(v => v.journeyId === j.id)) CONTACT_STATES.push(...simulateVersion(j, v, CONTACTS));
 }
@@ -1400,7 +1410,7 @@ const VERSION_ACTIONS = {
   delete(v) { const i = VERSIONS.indexOf(v); if (i >= 0) VERSIONS.splice(i, 1); },
 };
 function createJourney({ name, eventId, entryMode, contactList }) {
-  const j = { id: uid('j'), name, description: '', eventId, entryMode, contactList, overrideUnsubscribe: false, testUsers: CONTACTS.filter(c => c.kind === contactList).slice(0, 2).map(c => c.id), orientation: 'LR', createdAt: nowIso(), updatedAt: nowIso(), updatedBy: me().id };
+  const j = { id: uid('j'), name, description: '', eventId, entryMode, contactList, overrideUnsubscribe: false, testUsers: contactsOf(contactList).slice(0, 2).map(c => c.id), orientation: 'LR', createdAt: nowIso(), updatedAt: nowIso(), updatedBy: me().id };
   const en = S.event(uid('s'), eventId, entryMode), ex = S.exit(uid('s'));
   const v = { id: uid('v'), journeyId: j.id, no: 1, status: 'draft', note: '', createdBy: me().id, createdAt: nowIso(), history: [{ at: nowIso(), by: me().id, text: 'Created' }], steps: [en, ex], edges: [E(en.id, ex.id)] };
   JOURNEYS.unshift(j); VERSIONS.push(v); return { j, v };
@@ -1479,7 +1489,7 @@ function renderJourneyList() {
     const others = versionsOf(j.id).filter(x => x.id !== main?.id && (x.status === 'closing' || x.status === 'pending'));
     const vline = x => `<div class="hrow vline" style="gap:6px"><span class="nowrap">v${x.no}</span>${vpill(x.status)}${x.note ? `<span class="t2 nowrap">${esc(x.note)}</span>` : ''}</div>`;
     return `<tr class="row" data-act="open-journey" data-arg="${j.id}" data-v="${main?.id ?? ''}" data-jid="${j.id}">
-      <td><div class="t1 hrow" style="gap:8px">${esc(j.name)}${j.overrideUnsubscribe ? `<span class="badge-ou" title="Messages in this journey can be sent to unsubscribed contacts">${icon('warn', 11)} Override unsubscribe</span>` : ''}</div><div class="t2 clamp" title="${esc(j.description)}">${j.contactList} · ${esc(j.description)}</div></td>
+      <td><div class="t1 hrow" style="gap:8px">${esc(j.name)}${j.overrideUnsubscribe ? `<span class="badge-ou" title="Messages in this journey can be sent to unsubscribed contacts">${icon('warn', 11)} Override unsubscribe</span>` : ''}</div><div class="t2 clamp" title="${esc(j.description)}">${esc(dmName(j.contactList))} · ${esc(j.description)}</div></td>
       <td><div>${esc(eventById(j.eventId)?.name ?? j.eventId)}</div><div class="t2 mono">${j.eventId}</div></td>
       <td><span class="chan-icons">${channels.map(chanIcon).join('')}</span></td>
       <td>${main ? `<div class="col" style="gap:4px">${vline(main)}${others.map(o => `<div class="small">${vline(o)}</div>`).join('')}</div>` : '—'}</td>
@@ -1497,7 +1507,7 @@ function renderJourneyList() {
           <label class="search-in">${icon('search')}<input id="jl-q" placeholder="Search by name" value="${esc(f.q)}"></label>
           <select class="inp" id="jl-event" style="width:200px"><option value="">All events</option>${EVENTS.map(e => `<option value="${e.id}" ${f.event === e.id ? 'selected' : ''}>${esc(e.name)}</option>`).join('')}</select>
           <select class="inp" id="jl-channel" style="width:150px"><option value="">All channels</option>${CHANNELS.map(c => `<option value="${c}" ${f.channel === c ? 'selected' : ''}>${CHANNEL_LABEL[c]}</option>`).join('')}</select>
-          <select class="inp" id="jl-list" style="width:160px"><option value="">All contact lists</option><option ${f.contactList === 'Customers' ? 'selected' : ''}>Customers</option><option ${f.contactList === 'Prospects' ? 'selected' : ''}>Prospects</option></select>
+          <select class="inp" id="jl-list" style="width:200px"><option value="">All contact lists</option>${DATAMARTS.map(d => `<option value="${d.id}" ${f.contactList === d.id ? 'selected' : ''}>${esc(d.name)}</option>`).join('')}</select>
           <span class="muted small right">${shown.length} journey${shown.length === 1 ? '' : 's'}</span>
         </div>
         <div style="overflow:auto;flex:1;min-height:0">
@@ -1518,28 +1528,6 @@ function rowMenu(el, jid) {
   el.parentElement.appendChild(m);
   setTimeout(() => document.addEventListener('click', () => m.remove(), { once: true }), 0);
 }
-/* "+ New journey" (modal): name, event, single / batch, contact list → editor with Event entry + Exit, v1 Draft */
-function newJourneyModal() {
-  openModal(modalHtml('New journey', `
-    <div class="fld"><label class="req" for="nj-name">Name</label><input id="nj-name" placeholder="e.g. Device order abandonment" autofocus></div>
-    <div class="fld"><label for="nj-event">Event <small class="muted">— every journey starts from an event</small></label><select id="nj-event">${EVENTS.map(e => `<option value="${e.id}">${esc(e.name)} · ${e.id}</option>`).join('')}</select><small class="muted" id="nj-hint"></small></div>
-    <div class="form2" style="padding:0">
-      <div class="fld"><label>Entry</label><div class="seg" id="nj-mode"><button class="on" data-mode="single" type="button">Single</button><button data-mode="batch" type="button">Batch</button></div><small class="muted" id="nj-mode-hint">One contact per API call.</small></div>
-      <div class="fld"><label>Contact list</label><div class="seg" id="nj-list"><button class="on" data-list="Customers" type="button">Customers</button><button data-list="Prospects" type="button">Prospects</button></div></div>
-    </div>`, `<button class="btn outline" data-act="modal-close">Cancel</button><button class="btn primary" id="nj-create" disabled>Create journey</button>`));
-  const hint = () => { const e = eventById($('nj-event').value); $('nj-hint').textContent = `${e.description} Payload: ${e.payload.map(p => p.name).join(', ')}.`; };
-  hint(); $('nj-event').onchange = hint;
-  $('nj-name').oninput = () => { $('nj-create').disabled = !$('nj-name').value.trim(); };
-  $('nj-name').onkeydown = e => { if (e.key === 'Enter' && $('nj-name').value.trim()) $('nj-create').click(); };
-  for (const id of ['nj-mode', 'nj-list']) $(id).querySelectorAll('button').forEach(b => b.onclick = () => { $(id).querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)); if (id === 'nj-mode') $('nj-mode-hint').textContent = b.dataset.mode === 'single' ? 'One contact per API call.' : 'Many contacts per API call. Batch entry is API only — no file upload.'; });
-  $('nj-create').onclick = () => {
-    const { j, v } = createJourney({ name: $('nj-name').value.trim(), eventId: $('nj-event').value, entryMode: $('nj-mode .on, #nj-mode .on').dataset.mode, contactList: $('nj-list .on, #nj-list .on').dataset.list });
-    closeModal(); toast('Journey created', 'Event entry and Exit are already placed. Add steps on the connection between them.');
-    openEditor(j.id, v.id, v.steps[0].id);
-  };
-  setTimeout(() => $('nj-name').focus(), 30);
-}
-
 /* ---- Screen 2 — Journey editor ----------------------------------------------------- */
 const TINT = t => `var(--t-${STEP_META[t].tint})`, INK = t => `var(--t-${STEP_META[t].tint}-i)`;
 const kindLabel = step => step.type === 'delivery' ? `Delivery · ${CHANNEL_LABEL[step.config.channel] ?? ''}` : STEP_META[step.type].k;
@@ -1643,7 +1631,7 @@ function renderEditor() {
   if (!j) { showView('journeys'); return; }
   if (!v || v.journeyId !== j.id) { v = primaryVersion(j); app.versionId = v?.id ?? null; }
   if (!v) { $('view-editor').innerHTML = '<div class="card"><div class="empty">This journey has no version.</div></div>'; return; }
-  crumb(Object.assign([{ label: 'Journeys', act: 'go-journeys' }, { label: j.name }], { right: `<span class="right">${pill(j.contactList)}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}<button class="btn sm outline" data-act="go-monitor" data-arg="${j.id}">${icon('monitor')} Monitor</button></span>` }));
+  crumb(Object.assign([{ label: 'Journeys', act: 'go-journeys' }, { label: j.name }], { right: `<span class="right">${pill(dmName(j.contactList))}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}<button class="btn sm outline" data-act="go-monitor" data-arg="${j.id}">${icon('monitor')} Monitor</button></span>` }));
   const locked = isLocked(v), issues = validateVersion(v), invalid = new Set(issues.map(i => i.stepId).filter(Boolean));
   const vs = versionsOf(j.id);
   $('view-editor').innerHTML = `
@@ -1759,7 +1747,7 @@ function versionBarHtml(j, v, vs, issues) {
 /* ---- step panels (right, aside.card.panel.jinfo) ---- */
 function stepPanelHtml(j, v) {
   const s = app.selectedStepId ? stepOf(v, app.selectedStepId) : null;
-  if (!s) return `<div class="ph"><h3>Step details</h3></div><div class="pb"><div class="empty">Select a step on the canvas.</div><div class="sec">Journey</div><dl class="kv"><dt>Contact list</dt><dd>${j.contactList}</dd><dt>Override unsub.</dt><dd>${j.overrideUnsubscribe ? 'On' : 'Off'}</dd><dt>Test users</dt><dd>${j.testUsers.length || 'None'}</dd><dt>Steps</dt><dd>${v.steps.length}</dd><dt>Description</dt><dd>${esc(j.description) || '<span class="muted">—</span>'}</dd></dl><button class="btn outline sm" style="align-self:flex-start" data-act="settings">${icon('settings')} Journey settings</button></div>`;
+  if (!s) return `<div class="ph"><h3>Step details</h3></div><div class="pb"><div class="empty">Select a step on the canvas.</div><div class="sec">Journey</div><dl class="kv"><dt>Contact list</dt><dd>${esc(dmName(j.contactList))}</dd><dt>Override unsub.</dt><dd>${j.overrideUnsubscribe ? 'On' : 'Off'}</dd><dt>Test users</dt><dd>${j.testUsers.length || 'None'}</dd><dt>Steps</dt><dd>${v.steps.length}</dd><dt>Description</dt><dd>${esc(j.description) || '<span class="muted">—</span>'}</dd></dl><button class="btn outline sm" style="align-self:flex-start" data-act="settings">${icon('settings')} Journey settings</button></div>`;
   const full = canEdit(v, s, 'any');
   const body = { event: eventPanel, delivery: deliveryPanel, wait: waitPanel, segmentSplit: segmentPanel, engagementSplit: engagementPanel, shuffleSplit: shufflePanel, controlGroup: controlPanel, exit: () => '<div class="empty" style="padding:12px">Contacts leave the journey here. No settings.</div>' }[s.type](s, v, j, full);
   const outs = outletsOf(s);
@@ -1779,7 +1767,8 @@ function eventPanel(s, v, j, full) {
   const batch = JSON.stringify({ event: c.eventId, items: [{ contact: { id: 'CUS-****4821' }, payload: sample }, { contact: { id: 'CUS-****1193', email: 'new.contact@example.com', language: 'en' }, payload: sample }] }, null, 2);
   return `<div class="fld"><label for="sp-event">Event</label>${sel('sp-event', 'config.eventId', c.eventId, EVENTS.map(e => [e.id, `${e.name} · ${e.id}`]), !full)}<small class="muted">${esc(ev?.description ?? '')}</small></div>
     <div class="fld"><label>Entry</label><div class="seg"><button type="button" class="${c.entryMode === 'single' ? 'on' : ''}" data-set="config.entryMode" data-val="single" ${full ? '' : 'disabled'}>Single</button><button type="button" class="${c.entryMode === 'batch' ? 'on' : ''}" data-set="config.entryMode" data-val="batch" ${full ? '' : 'disabled'}>Batch</button></div><small class="muted">${c.entryMode === 'single' ? 'One contact per API call.' : 'Many contacts per API call. Batch entry is API only — no file upload.'}</small></div>
-    <label class="ck"><input type="checkbox" data-bind="config.createContact" ${c.createContact ? 'checked' : ''} ${full ? '' : 'disabled'}><span>Create the contact if missing<small>Unknown contacts are added to the ${j.contactList} list from the request.</small></span></label>
+    <div class="fld"><label for="sp-dm">Contact list <small class="muted">— an existing datamart</small></label><select id="sp-dm" ${full && !versionsOf(j.id).some(x => x.status === 'active' || x.status === 'closing') ? '' : 'disabled'}>${DATAMARTS.map(d => `<option value="${d.id}" ${j.contactList === d.id ? 'selected' : ''}>${esc(d.name)} · ${d.type}</option>`).join('')}</select><small class="muted">${esc(dmById(j.contactList).desc)} ${fmtNum(contactsOf(j.contactList).length)} contacts.</small></div>
+    <label class="ck"><input type="checkbox" data-bind="config.createContact" ${c.createContact ? 'checked' : ''} ${full ? '' : 'disabled'}><span>Create the contact if missing<small>Unknown contacts are added to ${esc(dmName(j.contactList))} from the request.</small></span></label>
     <div class="info">${icon('clock')} Events are processed within 60 s of the API call.</div>
     <div class="sec">Payload fields</div><small class="muted">Click a field to copy it as a placeholder.</small>
     <div class="hrow wrap" style="gap:6px">${(ev?.payload ?? []).map(p => `<button type="button" class="chip ph" data-act="copy-ph" data-arg="{{${p.name}}}" title="${p.type} · e.g. ${esc(p.sample)}">{{${p.name}}}</button>`).join('')}</div>
@@ -1866,6 +1855,7 @@ function wireStepPanel(j, v) {
     if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
   });
   panel.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => commit(b.dataset.set, b.dataset.val)));
+  if ($('sp-dm')) $('sp-dm').onchange = e => { j.contactList = e.target.value; j.testUsers = j.testUsers.filter(id => contactsOf(j.contactList).some(c => c.id === id)); touch(j); renderEditor(); };
   panel.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => { app.editorSub[s.id] = b.dataset.sub; renderEditor(); }));
 }
 
@@ -1942,21 +1932,21 @@ function settingsModal(j) {
   const locked = versionsOf(j.id).some(v => v.status === 'active' || v.status === 'closing');
   const state = { contactList: j.contactList, override: j.overrideUnsubscribe, testUsers: [...j.testUsers], q: '' };
   const render = () => {
-    const pool = CONTACTS.filter(c => c.kind === state.contactList), shown = pool.filter(c => !state.q || `${c.firstName} ${c.lastName} ${c.email} ${c.id}`.toLowerCase().includes(state.q.toLowerCase())).slice(0, 12);
+    const pool = contactsOf(state.contactList), shown = pool.filter(c => !state.q || `${c.firstName} ${c.lastName} ${c.email} ${c.id}`.toLowerCase().includes(state.q.toLowerCase())).slice(0, 12);
     const selected = CONTACTS.filter(c => state.testUsers.includes(c.id));
     openModal(modalHtml('Journey settings', `
       <div class="form2" style="padding:0">
         <div class="fld span2"><label for="st-name">Name</label><input id="st-name" value="${esc(j.name)}"></div>
         <div class="fld span2"><label for="st-desc">Description</label><input id="st-desc" value="${esc(j.description)}"></div>
-        <div class="fld"><label>Contact list</label><div class="seg" id="st-list"><button type="button" class="${state.contactList === 'Customers' ? 'on' : ''}" data-list="Customers" ${locked ? 'disabled' : ''}>Customers</button><button type="button" class="${state.contactList === 'Prospects' ? 'on' : ''}" data-list="Prospects" ${locked ? 'disabled' : ''}>Prospects</button></div>${locked ? '<small class="muted">Locked while a version is active.</small>' : ''}</div>
+        <div class="fld"><label for="st-list">Contact list <small class="muted">— an existing datamart</small></label><select id="st-list" ${locked ? 'disabled' : ''}>${DATAMARTS.map(d => `<option value="${d.id}" ${state.contactList === d.id ? 'selected' : ''}>${esc(d.name)} · ${d.type}</option>`).join('')}</select><small class="muted">${locked ? 'Locked while a version is active.' : esc(dmById(state.contactList).desc)}</small></div>
         <div class="fld"><label>Override unsubscribe</label><label class="ck"><input type="checkbox" id="st-ou" ${state.override ? 'checked' : ''}><span>Allow messages to unsubscribed contacts<small>Each Delivery then has a “Send even to unsubscribed” switch. The journey shows a chip.</small></span></label></div>
         <div class="fld span2"><label>Test users <small class="muted">— used by Test send</small></label>
           <div class="hrow wrap" style="gap:4px">${selected.map(c => `<span class="chip">${esc(c.firstName)} ${esc(c.lastName)} · ${c.id} <button type="button" class="x" style="width:18px;height:18px;font-size:14px" data-rm="${c.id}">×</button></span>`).join('') || '<span class="muted small">No test users yet.</span>'}</div>
-          <label class="search-in" style="max-width:none">${icon('search')}<input id="st-q" placeholder="Search ${state.contactList} by name, email or ID" value="${esc(state.q)}"></label>
+          <label class="search-in" style="max-width:none">${icon('search')}<input id="st-q" placeholder="Search ${esc(dmName(state.contactList))} by name, email or ID" value="${esc(state.q)}"></label>
           <div class="col" style="gap:2px;max-height:180px;overflow:auto">${shown.map(c => `<label class="ck" style="padding:3px 2px"><input type="checkbox" data-tu="${c.id}" ${state.testUsers.includes(c.id) ? 'checked' : ''}><span>${esc(c.firstName)} ${esc(c.lastName)} <span class="muted">· ${c.id} · ${esc(c.email)} · ${c.language.toUpperCase()}${c.phone ? '' : ' · no phone'}${c.pushToken ? '' : ' · no push'}</span></span></label>`).join('')}</div>
         </div>
       </div>`, `<button class="btn outline" data-act="modal-close">Cancel</button><button class="btn primary" id="st-save">Save</button>`), 'md');
-    $('st-list').querySelectorAll('button').forEach(b => b.onclick = () => { state.contactList = b.dataset.list; render(); });
+    $('st-list').onchange = e => { state.contactList = e.target.value; state.testUsers = state.testUsers.filter(id => contactsOf(state.contactList).some(c => c.id === id)); render(); };
     $('st-ou').onchange = e => {
       if (!e.target.checked) { state.override = false; return; }
       e.target.checked = false;
@@ -2037,7 +2027,7 @@ function renderMonitor() {
       <div class="card-h" style="padding-bottom:6px"><h2>Journey Monitor</h2><p>Per-customer journey state, step statistics and the path of any single contact.</p></div>
       <div class="toolrow" style="padding-top:0">
         <label for="msel" style="color:var(--ink-2)">Journey</label><select id="msel">${JOURNEYS.map(x => `<option value="${x.id}" ${x.id === j.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select>
-        ${pill(j.contactList)}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}
+        ${pill(dmName(j.contactList))}${j.overrideUnsubscribe ? `<span class="badge-ou">${icon('warn', 11)} Override unsubscribe</span>` : ''}
         <div class="grow"></div>
         ${m.tab !== 'overview' ? `<label for="mvsel" style="color:var(--ink-2)">Version</label><select id="mvsel">${vs.map(x => `<option value="${x.id}" ${x.id === v?.id ? 'selected' : ''}>v${x.no} · ${STATUS_LABEL[x.status]}${x.note ? ` · ${esc(x.note)}` : ''}</option>`).join('')}</select>` : ''}
         <label for="mrange" style="color:var(--ink-2)">Entries</label><select id="mrange">${RANGES.map(r => `<option value="${r[0]}" ${m.range === r[0] ? 'selected' : ''}>${r[1]}</option>`).join('')}</select>
@@ -2136,7 +2126,7 @@ document.addEventListener('click', e => {
   if (act === 'go-editor') { openEditor(arg, el.dataset.v || undefined); return; }
   if (act === 'go-monitor') { openMonitor(arg); return; }
   if (act === 'list-tab') { app.list.tab = arg; renderJourneyList(); return; }
-  if (act === 'new-journey') { newJourneyModal(); return; }
+  if (act === 'new-journey') { const n = JOURNEYS.filter(x => x.name.startsWith('New journey')).length; const { j, v } = createJourney({ name: n ? `New journey ${n + 1}` : 'New journey', eventId: EVENTS[0].id, entryMode: 'single', contactList: 'DM-1' }); toast('Journey created', 'Event entry and Exit are placed. Pick the event, entry mode and contact list in the Event entry panel; the name is in Journey settings.'); openEditor(j.id, v.id, v.steps[0].id); return; }
   if (act === 'row-menu') { e.stopPropagation(); rowMenu(el, arg); return; }
   if (act === 'open-journey') { if (e.target.closest('[data-stop]') && el.tagName === 'TR') return; openEditor(el.dataset.jid ?? arg, el.dataset.v || undefined); return; }
   if (act === 'duplicate') { const j = JOURNEYS.find(x => x.id === arg); const c = duplicateJourney(j); toast('Journey duplicated', `“${c.name}” created as a draft.`); app.list.tab = 'draft'; renderJourneyList(); return; }

@@ -14,7 +14,7 @@ resets the demo; **Reset demo data** in the top bar does the same without reload
 - **Roles:** Marketer · Approver (Role view, top right). The approver's queue is the
   *Pending approval* tab of the journey list; *Payment failed – reminder* has a v3 waiting there.
 - **Journeys** — list with status tabs (Draft / Pending approval / Live / Past), search, filters,
-  row actions, *+ New journey* (modal) that opens the editor with Event entry and Exit placed.
+  row actions, *+ New journey* that opens the editor directly with Event entry and Exit placed.
 - **Journey editor** — version bar (buttons derived from one transition table), auto-layout
   canvas (Horizontal / Vertical, zoom, fit, pan, collapsible split paths), palette, three ways
   to add a step (drag onto a connection, "+" on a connection, *Add next step* in a panel),
@@ -49,7 +49,7 @@ Every interactive element carries an `id` or `data-*` hook; the Playwright specs
 | 4 | Delivery step parity | `deliveryPanel`: one channel, ready-made single-language content (`CONTENT_ITEMS`, channel default preselected, read-only preview), offer (placeholders + attribution), communication rules, send even to unsubscribed, skip note |
 | 5 | Flow nodes | `segmentPanel` (fixed Remaining; also the FR / EN language split), `engagementPanel`, `shufflePanel`, `controlPanel`, `waitPanel` |
 | 6 | Monitoring | `overviewHtml`, Flow tab (`stepStats` on the canvas), `contactsHtml`, `contactPanel` |
-| 7 | Management + test | journey list, Journey settings (contact list Customers / Prospects), `testSendModal` |
+| 7 | Management + test | journey list, contact list = an existing datamart (`DATAMARTS`, chosen in the Event entry panel or Journey settings), `testSendModal` |
 
 ## Seed journeys
 
