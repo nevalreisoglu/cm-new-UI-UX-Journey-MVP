@@ -81,7 +81,8 @@ Inside `index.html`, keep the JS in clearly marked sections, in this order:
    - `canEdit(version, step, field)` → the single rule for what is editable in Active/Closing
      (only the `contentId` of Delivery steps).
    - `diffVersions(a, b)` → `{added, removed, changed}` by step id (+ edges).
-   - `layoutTree(version, orientation)` → x/y per step (journeys are trees; no merge).
+   - `layoutTree(version, orientation)` → x/y per step (journeys are trees with parallel
+     branches; no merge).
    - `stepStats(version)` → counts computed **from `CONTACT_STATES`**, never typed by hand.
 3. **STATE** — `app = {role, view, journeyId, versionId, selectedStepId, orientation, zoom, …}`.
 4. **RENDER** — one `render<View>()` per view: `renderJourneyList()`, `renderEditor()`,
@@ -155,6 +156,10 @@ Shuffle · Action: Control group, Exit.
   step types); "Add next step" in the selected step's panel. A connector also carries a "×"
   that removes it together with the steps after it; the path stays open (dashed) until a step
   or an Exit is added.
+- **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
+  more than one outgoing connection ("Add parallel branch" in its panel; "×" on the branch
+  removes it). Contacts take every branch at the same time. Edges of parallel branches carry
+  the labels `∥2`, `∥3`, …; the main connection keeps `""`.
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
   outline when invalid. A path ending without Exit is drawn dashed. Cards grow to fit their

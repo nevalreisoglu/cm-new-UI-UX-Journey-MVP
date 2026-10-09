@@ -1018,7 +1018,8 @@ function simulateVersion(journey, v, contacts) {
   const pool = contactsOf(journey.contactList);
   const entry = v.steps.find(s => s.type === 'event'); if (!entry) return [];
   const stepOf = id => v.steps.find(s => s.id === id);
-  const nextOf = (id, label) => v.edges.find(e => e.from === id && (label === undefined || e.label === label))?.to ?? null;
+  const nextOf = (id, label) => v.edges.find(e => e.from === id && (label === undefined ? !isParKey(e.label) : e.label === label))?.to ?? null;
+  const parallelOf = id => v.edges.filter(e => e.from === id && isParKey(e.label) && e.to).map(e => e.to);
   const now = NOW.getTime(), out = [];
   for (let i = 0; i < count; i++) {
     const contact = pool[(Math.floor(hash01(v.id + i) * pool.length) + i * 7) % pool.length];
@@ -1026,8 +1027,9 @@ function simulateVersion(journey, v, contacts) {
     const recent = to === 0 && rng.chance(0.04);
     let t = recent ? now - rng.int(1, 4) * MIN : now - to * DAY - rng.next() * (from - to) * DAY;
     const receivedAt = iso(t);
-    const history = []; let cur = entry, status = 'Exited', lastDelivery = '—', lastSkipped = false, waitKind = null;
+    const history = []; let status = 'Exited', lastDelivery = '—', lastSkipped = false, waitKind = null;
     const push = (stepId, event, detail, extra = {}) => history.push({ stepId, event, at: iso(t), detail, ...extra });
+    const walkFrom = (startStep, t0) => { let cur = startStep; t = t0;
     walk: while (cur) {
       push(cur.id, 'entered', `Entered “${cur.name}”`);
       let label = '';
@@ -1089,10 +1091,12 @@ function simulateVersion(journey, v, contacts) {
         case 'controlGroup': push(cur.id, 'control', `Kept for comparison in “${cur.config.name}”`); status = 'Control group'; break walk;
         case 'exit': push(cur.id, 'exited', 'Exited the journey'); status = lastSkipped ? 'Skipped' : 'Exited'; break walk;
       }
-      const nextId = nextOf(cur.id, outletsOf(cur).length > 1 ? label : undefined);
+      for (const pid of isSplit(cur) ? [] : parallelOf(cur.id)) { const ps = stepOf(pid); if (ps) { const saved = { status, waitKind, lastDelivery, lastSkipped }; walkFrom(ps, t); ({ status, waitKind, lastDelivery, lastSkipped } = saved); } } // parallel branches: the contact takes all of them
+      const nextId = nextOf(cur.id, isSplit(cur) ? label : undefined);
       if (!nextId) { push(cur.id, 'exited', 'Path ended'); status = 'Exited'; break; }
       cur = stepOf(nextId);
-    }
+    } };
+    walkFrom(entry, t);
     out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, waitKind, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
   }
   return out;
@@ -1197,17 +1201,24 @@ function newStep(type) {
   }
 }
 /* the paths that leave a step: key = edge label, label = what the canvas shows */
-function outletsOf(step) {
+const PAR = '∥';
+function isParKey(k) { return typeof k === 'string' && k.startsWith('∥'); }
+/* parallel branches: extra connections leaving a single-outlet step; contacts take all of them */
+function parallelOutlets(step, v) { return (v ?? CUR_V)?.edges.filter(e => e.from === step.id && isParKey(e.label)).map(e => ({ key: e.label, label: '' })) ?? []; }
+let CUR_V = null; // the version outletsOf reads parallel branches from (set by callers that have one)
+function outletsOf(step, v) {
   switch (step.type) {
-    case 'event': case 'delivery': return [{ key: '', label: '' }];
-    case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }];
+    case 'event': case 'delivery': return [{ key: '', label: '' }, ...parallelOutlets(step, v)];
+    case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }, ...parallelOutlets(step, v)];
     case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}` })), { key: 'Remaining', label: 'Remaining' }];
     case 'engagementSplit': return [{ key: 'Opened', label: 'Opened' }, { key: 'Clicked', label: 'Clicked' }, { key: 'Remaining', label: 'Remaining' }];
     case 'shuffleSplit': return step.config.paths.map(p => ({ key: p.label, label: `${p.label} · ${p.pct} %` }));
     default: return [];
   }
 }
-const isSplit = s => outletsOf(s).length > 1;
+function isSplit(s) { return s.type === 'segmentSplit' || s.type === 'engagementSplit' || s.type === 'shuffleSplit' || (s.type === 'wait' && (s.config.kind === 'event' || s.config.kind === 'segment')); }
+const canParallel = s => s.type === 'event' || s.type === 'delivery' || (s.type === 'wait' && !isSplit(s));
+function addParallel(v, step) { const n = v.edges.filter(e => e.from === step.id && isParKey(e.label)).length + 2; v.edges.push(E(step.id, null, `${PAR}${n}`)); }
 const stepOf = (v, id) => v.steps.find(s => s.id === id);
 const entryOf = v => v.steps.find(s => s.type === 'event');
 const edgeOut = (v, id, key) => v.edges.find(e => e.from === id && e.label === key);
@@ -1218,6 +1229,7 @@ function reachable(v) { const en = entryOf(v); if (!en) return []; const ids = [
 function deliveriesBefore(v, id) { const out = []; let e = parentEdge(v, id); const seen = new Set(); while (e && !seen.has(e.from)) { seen.add(e.from); const s = stepOf(v, e.from); if (s?.type === 'delivery') out.unshift(s); e = parentEdge(v, e.from); } return out; }
 /* insert a step on a connection: the new step's first path takes over the old target */
 function insertOnEdge(v, edge, step) {
+  CUR_V = v;
   const oldTo = edge.to; edge.to = step.id; v.steps.push(step);
   const outs = outletsOf(step);
   if (outs.length) v.edges.push(E(step.id, oldTo, outs[0].key));
@@ -1228,6 +1240,7 @@ function insertOnEdge(v, edge, step) {
 }
 /* remove a step: single-outlet steps are spliced out; a split keeps its first path; terminals leave the connection open */
 function removeStep(v, id) {
+  CUR_V = v;
   const step = stepOf(v, id); if (!step || step.type === 'event') return;
   const pe = parentEdge(v, id), outs = outletsOf(step);
   const keep = outs.length ? edgeOut(v, id, outs[0].key)?.to ?? null : null;
@@ -1239,6 +1252,7 @@ function removeStep(v, id) {
 }
 /* keep edges in sync when a split's paths change (renamed / removed outlets) */
 function syncEdges(v, step) {
+  CUR_V = v;
   const keys = new Set(outletsOf(step).map(o => o.key));
   const gone = v.edges.filter(e => e.from === step.id && !keys.has(e.label));
   for (const e of gone) { const drop = new Set([e.to, ...descendants(v, e.to)]); v.steps = v.steps.filter(s => !drop.has(s.id)); v.edges = v.edges.filter(x => x !== e && !drop.has(x.from) && !drop.has(x.to)); }
@@ -1300,6 +1314,7 @@ const activeVersion = jid => VERSIONS.find(v => v.journeyId === jid && v.status 
 
 /* [1] validation — blocks Submit */
 function validateVersion(v) {
+  CUR_V = v;
   const issues = [], en = entryOf(v);
   if (!en) return [{ stepId: null, message: 'The journey has no Event entry.' }];
   for (const s of reachable(v)) {
@@ -1311,7 +1326,7 @@ function validateVersion(v) {
     if (s.type === 'wait' && c.kind === 'segment' && (!c.segmentId || !(c.timeoutAmount > 0))) issues.push({ stepId: s.id, message: `“${s.name}”: wait for segment match needs a segment and a timeout.` });
     if (s.type === 'delivery' && !c.channel) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without a channel.` });
     if (s.type === 'delivery' && c.channel && !c.contentId) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without content.` });
-    for (const o of outletsOf(s)) if (!edgeOut(v, s.id, o.key)) issues.push({ stepId: s.id, message: `“${s.name}”${o.label ? ` · ${o.label}` : ''}: path does not end with Exit.` });
+    for (const o of outletsOf(s, v)) if (!edgeOut(v, s.id, o.key)?.to) issues.push({ stepId: s.id, message: `“${s.name}”${o.label ? ` · ${o.label}` : ''}: path does not end with Exit.` });
   }
   return issues;
 }
@@ -1357,6 +1372,7 @@ function nodeRows(step) {
 const nodeH = step => { const r = nodeRows(step); return r ? FIELD_TOP + r * FIELD_H + 8 : NH; };
 /* build the drawable graph: reachable steps, stubs for collapsed split paths, end marks for paths without Exit */
 function buildGraph(v, opts = {}) {
+  CUR_V = v;
   const collapsed = opts.collapsed ?? new Set(), nodes = [], edges = [], en = entryOf(v);
   if (!en) return { nodes, edges };
   const seen = new Set();
@@ -1367,7 +1383,7 @@ function buildGraph(v, opts = {}) {
     const isCollapsed = collapsed.has(id) && isSplit(step);
     outletsOf(step).forEach((o, i) => {
       const e = edgeOut(v, id, o.key);
-      if (!e) { const eid = `${id}-end-${i}`; nodes.push({ id: eid, kind: 'end' }); edges.push({ id: `${id}:${o.key}`, from: id, to: eid, key: o.key, label: o.label, dangling: true }); return; }
+      if (!e || !e.to) { const eid = `${id}-end-${i}`; nodes.push({ id: eid, kind: 'end' }); edges.push({ id: `${id}:${o.key}`, from: id, to: eid, key: o.key, label: o.label, dangling: true }); return; }
       if (isCollapsed) { const sid = `${id}-stub-${i}`; nodes.push({ id: sid, kind: 'stub', parent: id, hidden: subtreeCount(e.to) }); edges.push({ id: `${id}:${o.key}`, from: id, to: sid, key: o.key, label: o.label, edge: e }); return; }
       edges.push({ id: `${id}:${o.key}`, from: id, to: e.to, key: o.key, label: o.label, edge: e, status: opts.edgeStatus?.(e) });
       walk(e.to);
@@ -1634,7 +1650,7 @@ function drawCanvas(wrapId, graph, opts) {
     if (label.trim()) { const lp = g.at(sib.length > 1 ? .2 + (idx / Math.max(1, sib.length - 1)) * (opts.editable ? .22 : .5) : .5), w = Math.max(30, label.length * 5.6 + 14); overlays += `<g class="edge ${e.status ? `st-${e.status}` : ''}"><rect x="${lp.x - w / 2}" y="${lp.y - 8}" width="${w}" height="16" rx="8"/><text x="${lp.x}" y="${lp.y + 3.5}" text-anchor="middle">${esc(e.label)}${stat ? `<tspan class="es"> ${esc(stat)}</tspan>` : ''}</text></g>`; }
     if (opts.editable) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
     // remove the connection: the steps hanging from it go with it, the path stays open
-    if (opts.editable && !e.dangling) { const c = g.at(.5 + (opts.orientation === 'LR' ? .0 : .0)), ox = opts.orientation === 'LR' ? 24 : 0, oy = opts.orientation === 'LR' ? 0 : 24; overlays += `<g class="ecut" data-edge="${e.id}" transform="translate(${c.x + ox},${c.y + oy})"><title>Remove this connection and the steps after it</title><circle r="8"/><path d="M-3,-3 L3,3 M3,-3 L-3,3"/></g>`; }
+    if (opts.editable && (!e.dangling || isParKey(e.key))) { const c = g.at(.5 + (opts.orientation === 'LR' ? .0 : .0)), ox = opts.orientation === 'LR' ? 24 : 0, oy = opts.orientation === 'LR' ? 0 : 24; overlays += `<g class="ecut" data-edge="${e.id}" transform="translate(${c.x + ox},${c.y + oy})"><title>Remove this connection and the steps after it</title><circle r="8"/><path d="M-3,-3 L3,3 M3,-3 L-3,3"/></g>`; }
   }
   let nodes = '';
   for (const n of graph.nodes) {
@@ -1741,7 +1757,7 @@ function wireCanvas(wrapId, handlers = {}) {
 }
 
 function renderEditor() {
-  const j = curJourney(); let v = curVersion();
+  const j = curJourney(); let v = curVersion(); CUR_V = v;
   if (!j) { showView('journeys'); return; }
   if (!v || v.journeyId !== j.id) { v = primaryVersion(j); app.versionId = v?.id ?? null; }
   if (!v) { $('view-editor').innerHTML = '<div class="card"><div class="empty">This journey has no version.</div></div>'; return; }
@@ -1779,7 +1795,7 @@ function renderEditor() {
     onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
     onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type)),
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
-    onCut: edgeId => { const i = edgeId.indexOf(':'), from = edgeId.slice(0, i), key = edgeId.slice(i + 1), edge = edgeOut(v, from, key); if (!edge) return; const drop = new Set([edge.to, ...descendants(v, edge.to)]); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); if (drop.has(app.selectedStepId)) app.selectedStepId = null; touch(j); renderEditor(); toast('Connection removed', `${drop.size} step${drop.size === 1 ? '' : 's'} after it removed. The path is open — add a step or an Exit with “+”.`, 'warn'); },
+    onCut: edgeId => { const i = edgeId.indexOf(':'), from = edgeId.slice(0, i), key = edgeId.slice(i + 1), edge = edgeOut(v, from, key); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); if (!isParKey(key)) v.edges.push(E(from, null, key)); if (drop.has(app.selectedStepId)) app.selectedStepId = null; touch(j); renderEditor(); toast(isParKey(key) ? 'Parallel branch removed' : 'Connection removed', `${drop.size} step${drop.size === 1 ? '' : 's'} after it removed.${isParKey(key) ? '' : ' The path is open — add a step or an Exit with “+”.'}`, 'warn'); },
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
     onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },
@@ -1824,9 +1840,9 @@ function stepMenu(x, y, onPick) {
   m.querySelectorAll('button').forEach(b => b.onclick = ev => { ev.stopPropagation(); closeStepMenu(); onPick(b.dataset.type); });
   document.body.appendChild(m);
   const r = m.getBoundingClientRect(); if (r.bottom > innerHeight) m.style.top = `${innerHeight - r.height - 8}px`; if (r.right > innerWidth) m.style.left = `${innerWidth - r.width - 8}px`;
-  setTimeout(() => document.addEventListener('click', closeStepMenu, { once: true }), 0);
+  setTimeout(() => document.addEventListener('click', closeStepMenu), 0);
 }
-function closeStepMenu() { document.querySelectorAll('.menu.stepmenu').forEach(m => m.remove()); }
+function closeStepMenu() { document.querySelectorAll('.menu.stepmenu').forEach(m => m.remove()); document.removeEventListener('click', closeStepMenu); }
 
 function lockBarHtml(v) {
   if (v.status === 'active' || v.status === 'closing') return `<div class="lockbar">${icon('lock')} Structure locked — only delivery content can be changed. Content changes need no approval and are logged in the version history.</div>`;
@@ -1866,12 +1882,12 @@ function stepPanelHtml(j, v) {
   if (!s) return `<div class="ph"><h3>Step details</h3></div><div class="pb"><div class="empty">Select a step on the canvas.</div><div class="sec">Journey</div><dl class="kv"><dt>Contact list</dt><dd>${esc(dmName(j.contactList))}</dd><dt>Override unsub.</dt><dd>${j.overrideUnsubscribe ? 'On' : 'Off'}</dd><dt>Test users</dt><dd>${j.testUsers.length || 'None'}</dd><dt>Steps</dt><dd>${v.steps.length}</dd><dt>Description</dt><dd>${esc(j.description) || '<span class="muted">—</span>'}</dd></dl><button class="btn outline sm" style="align-self:flex-start" data-act="settings">${icon('settings')} Journey settings</button></div>`;
   const full = canEdit(v, s, 'any');
   const body = { event: eventPanel, delivery: deliveryPanel, wait: waitPanel, segmentSplit: segmentPanel, engagementSplit: engagementPanel, shuffleSplit: shufflePanel, controlGroup: controlPanel, exit: () => '<div class="empty" style="padding:12px">Contacts leave the journey here. No settings.</div>' }[s.type](s, v, j, full);
-  const outs = outletsOf(s);
+  const outs = outletsOf(s, v);
   return `<div class="ph"><span class="ic" style="width:26px;height:26px;background:${TINT(s.type)};color:${INK(s.type)}">${icon(nodeIcon(s), 14)}</span><div style="flex:1;min-width:0"><div class="kind">${esc(kindLabel(s))}</div><h3 style="font-size:15px">${esc(s.name)}</h3></div>${full && s.type !== 'event' ? `<button class="x" data-act="delete-step" title="Delete step">${icon('trash')}</button>` : ''}</div>
     <div class="pb" id="sp-body">
       ${s.type !== 'delivery' ? `<div class="fld"><label for="sp-name">Step name</label><input id="sp-name" data-bind="name" value="${esc(s.name)}" ${full ? '' : 'disabled'}></div>` : ''}
       ${body}
-      ${full && outs.length ? `<div class="sec">Next step</div>${outs.map(o => { const e = edgeOut(v, s.id, o.key); return `<div class="pathrow">${outs.length > 1 ? `<span class="pl">${esc(o.label)}</span>` : ''}<span class="small muted grow">${e ? `→ ${esc(stepOf(v, e.to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span><button class="btn outline sm" data-act="add-next" data-arg="${esc(o.key)}">Add next step ▾</button></div>`; }).join('')}` : ''}
+      ${full && outs.length ? `<div class="sec">Next step</div>${outs.map((o, i) => { const e = edgeOut(v, s.id, o.key); return `<div class="pathrow">${outs.length > 1 ? `<span class="pl">${esc(o.label || (isParKey(o.key) ? `Parallel ${i + 1}` : 'Main'))}</span>` : ''}<span class="small muted grow">${e?.to ? `→ ${esc(stepOf(v, e.to)?.name ?? '?')}` : '<span style="color:var(--bad)">→ no Exit</span>'}</span><button class="btn outline sm" data-act="add-next" data-arg="${esc(o.key)}">Add next step ▾</button>${isParKey(o.key) ? `<button class="x" title="Remove this parallel branch" data-act="remove-par" data-arg="${esc(o.key)}">×</button>` : ''}</div>`; }).join('')}${canParallel(s) ? `<button class="btn outline sm" style="align-self:flex-start" data-act="add-par">${icon('plus')} Add parallel branch</button><small class="muted">Contacts take every branch of this step at the same time.</small>` : ''}` : ''}
     </div>`;
 }
 const sel = (id, bind, value, options, dis, extra = '') => `<select id="${id}" data-bind="${bind}" ${dis ? 'disabled' : ''} ${extra}>${options.map(([v, l]) => `<option value="${esc(v)}" ${String(v) === String(value ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
@@ -2026,6 +2042,8 @@ function handleAct(act, arg, el, e) {
     case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
     case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; touch(j); renderEditor(); } return;
     case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, type => addAfter(s.id, arg, type)); return;
+    case 'add-par': addParallel(v, s); touch(j); renderEditor(); toast('Parallel branch added', 'Add a step or an Exit on the new open path with “+”.'); return;
+    case 'remove-par': { const edge = edgeOut(v, s.id, arg); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); touch(j); renderEditor(); return; }
     case 'copy-ph': navigator.clipboard?.writeText(arg).catch(() => {}); toast('Copied', `${arg} — paste it into content outside this prototype.`); return;
     case 'set-channel': if (s && canEdit(v, s, 'channel') && s.config.channel !== arg) { s.config.channel = arg; s.config.contentId = defaultContentFor(arg)?.id ?? null; touch(j); renderEditor(); } return;
     case 'seg-add': s.config.segments.push(null); touch(j); renderEditor(); return;
