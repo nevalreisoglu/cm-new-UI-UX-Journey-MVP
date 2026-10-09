@@ -171,5 +171,5 @@
 
 .pbar { height: 6px; border-radius: 3px; background: var(--grey-2); overflow: hidden; }
 .pbar i { display: block; height: 100%; background: var(--sec); }
-.tbl td .t2.clamp { max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tbl td .t2.clamp { max-width: 230px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tbl td.nw { white-space: nowrap; }
