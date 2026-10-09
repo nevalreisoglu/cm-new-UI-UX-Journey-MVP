@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.2 — journey list, editor, versions, monitor, tests
+- Journey list with status tabs, filters, row actions and the New journey modal.
+- Editor: SVG auto-layout canvas, palette, "+" on connections, step panels, validation,
+  version bar from `VERSION_TRANSITIONS`, structure lock (`canEdit`), Journey settings, Test
+  send, View changes.
+- Journey Monitor: Overview, Flow with stats, Contacts, contact panel.
+- Playwright checks in `tests/` (views at 1280 / 1440 px, product-rule flows).
+
 ## v0.1 — shell and mock data (single-file rebuild)
 - `index.html` replaces the React build: CSS copied from CM-New-UI-UX2, the same shell
   (top bar, left menu, breadcrumb, footer), Role view (Marketer / Approver), Reset demo data.

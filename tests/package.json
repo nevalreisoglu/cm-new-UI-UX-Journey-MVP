@@ -1,0 +1,12 @@
+{
+  "name": "cm-journey-mvp-tests",
+  "private": true,
+  "description": "Playwright checks for the Journey MVP prototype (index.html over file://)",
+  "scripts": {
+    "test": "playwright test",
+    "shots": "playwright test specs/views.spec.js --update-snapshots"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

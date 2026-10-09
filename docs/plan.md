@@ -81,6 +81,13 @@ e. monitor (overview, flow stats, contacts, contact panel)
 f. side-by-side visual check against CM-New-UI-UX2 at 1280 / 1440 px; Playwright checks in
    `tests/`; CHANGELOG, decisions, README open questions
 
+## Deviations while building
+- The Delivery stepper's first screen is titled *Create* and holds the delivery name and the
+  channel cards; *Content* and *Details* follow (decision D5).
+- Node cards are SVG (as in CM-New-UI-UX2), 200 × 72 px, with a 32 px stats strip in Monitor.
+- `wireCanvas` is one pointer / wheel / click handler per canvas element; the editor, Monitor,
+  View changes and the contact panel each have their own.
+
 ## Points I will decide unless told otherwise
 
 - "+ New journey" is a modal again (name, event, single / batch, contact list), as this brief says.
