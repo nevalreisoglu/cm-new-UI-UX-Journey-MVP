@@ -644,7 +644,7 @@ details summary{cursor:pointer}
 .vhist{display:flex;flex-direction:column;gap:6px;font-size:12.5px}
 .vhist div{display:grid;grid-template-columns:130px 1fr;gap:10px}
 .vhist span:first-child{color:var(--ink-3);font-variant-numeric:tabular-nums}
-@media (max-width:1300px){.tbl td .t2.clamp{max-width:140px}#jl-table .t2.nowrap{white-space:normal}#jl-table td,#jl-table th{padding-left:8px;padding-right:8px}}
+@media (max-width:1300px){.tbl td .t2.clamp{max-width:150px}#jl-table td,#jl-table th{padding-left:8px;padding-right:8px}#jl-table .t1.hrow{display:block}#jl-table .t1.hrow .badge-ou{margin-top:3px}#jl-table .vline{display:block}#jl-table .vline .t2{display:block;margin-left:0}#jl-table .vline .pill{vertical-align:middle}}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -1475,7 +1475,7 @@ function renderJourneyList() {
     const pending = versionsOf(j.id).find(x => x.status === 'pending');
     const main = f.tab === 'pending' && pending ? pending : v; // the approver's queue shows the version waiting
     const others = versionsOf(j.id).filter(x => x.id !== main?.id && (x.status === 'closing' || x.status === 'pending'));
-    const vline = x => `<div class="hrow" style="gap:6px"><span class="nowrap">v${x.no}</span>${vpill(x.status)}${x.note ? `<span class="t2 nowrap">${esc(x.note)}</span>` : ''}</div>`;
+    const vline = x => `<div class="hrow vline" style="gap:6px"><span class="nowrap">v${x.no}</span>${vpill(x.status)}${x.note ? `<span class="t2 nowrap">${esc(x.note)}</span>` : ''}</div>`;
     return `<tr class="row" data-act="open-journey" data-arg="${j.id}" data-v="${main?.id ?? ''}" data-jid="${j.id}">
       <td><div class="t1 hrow" style="gap:8px">${esc(j.name)}${j.overrideUnsubscribe ? `<span class="badge-ou" title="Messages in this journey can be sent to unsubscribed contacts">${icon('warn', 11)} Override unsubscribe</span>` : ''}</div><div class="t2 clamp" title="${esc(j.description)}">${j.contactList} · ${esc(j.description)}</div></td>
       <td><div>${esc(eventById(j.eventId)?.name ?? j.eventId)}</div><div class="t2 mono">${j.eventId}</div></td>
