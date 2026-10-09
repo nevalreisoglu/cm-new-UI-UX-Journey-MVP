@@ -729,7 +729,12 @@ const EVENTS = [
     { name: 'amount', type: 'number', sample: '42.50' }, { name: 'due_date', type: 'date', sample: '2026-10-15' }, { name: 'pay_url', type: 'url', sample: 'https://my.example.com/pay/7c31' }] },
   { id: 'plan_changed', name: 'Plan changed', description: 'A customer moved to another plan.', payload: [
     { name: 'old_plan', type: 'string', sample: 'Mobile 10 GB' }, { name: 'new_plan', type: 'string', sample: 'Mobile 40 GB' }] },
+  { id: 'order_completed', name: 'Order completed', description: 'A device order was paid and confirmed.', payload: [
+    { name: 'order_id', type: 'string', sample: 'ORD-48213' }, { name: 'amount', type: 'number', sample: '649.00' }] },
 ];
+const WEEKDAYS = [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']];
+const dayName = d => WEEKDAYS.find(w => w[0] === d)?.[1] ?? '';
+const daysLabel = days => { const k = [...days].sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)); if (k.length === 7) return 'every day'; if (k.join() === '1,2,3,4,5') return 'Mon–Fri'; if (k.join() === '1,2,3,4,5,6') return 'Mon–Sat'; return k.map(dayName).join(', '); };
 const eventById = id => EVENTS.find(e => e.id === id);
 const CONTACT_FIELDS = ['first_name', 'last_name', 'email', 'phone', 'plan', 'language'];
 const OFFER_FIELDS = ['offer_name', 'offer_code', 'offer_link'];
@@ -798,6 +803,8 @@ const CONTENT_ITEMS = [
   em('c-roaming-en', 'Roaming promo', 'en', 'This summer, travel with your {{new_plan}} plan', '{{offer_name}}', 'Hi {{first_name}},\n\nWith {{new_plan}}, enjoy {{offer_name}} until August 31. Code: {{offer_code}}\n\n{{offer_link}}'),
   sm('s-generic-fr', 'SMS générique', 'fr', '{{first_name}}, un message de votre fournisseur concernant votre forfait {{plan}}.', true),
   sm('s-generic-en', 'Generic SMS', 'en', '{{first_name}}, a message from your provider about your {{plan}} plan.'),
+  sm('s-cart-fr', 'Panier – rappel SMS', 'fr', '{{first_name}}, votre {{device_name}} est toujours dans votre panier : {{cart_url}}'),
+  sm('s-cart-en', 'Cart – SMS reminder', 'en', '{{first_name}}, your {{device_name}} is still in your cart: {{cart_url}}'),
   sm('s-stock-fr', 'Retour en stock – rappel', 'fr', '{{device_name}} est encore disponible – commandez avant la rupture : {{product_url}}'),
   sm('s-stock-en', 'Back in stock – nudge', 'en', '{{device_name}} is still available – order before it sells out: {{product_url}}'),
   sm('s-gift-fr', 'Cadeau de bienvenue', 'fr', '{{first_name}}, votre cadeau {{offer_name}} vous attend : {{offer_link}}'),
@@ -848,7 +855,9 @@ const M = 'u-marketer', A = 'u-approver';
 const S = {
   event: (id, eventId, entryMode, createContact = true) => ({ id, type: 'event', name: 'Event entry', config: { eventId, entryMode, createContact, segmentId: null } }),
   delivery: (id, name, channel, contentId, extra = {}) => ({ id, type: 'delivery', name, config: { channel, contentId, offerId: null, policyId: 'pol-default', sendToUnsubscribed: false, ...extra } }),
-  wait: (id, amount, unit) => ({ id, type: 'wait', name: `Wait ${amount} ${unit}`, config: { amount, unit } }),
+  /* Wait: kind duration | until | event | segment (priority wait is out of scope) */
+  wait: (id, amount, unit, extra = {}) => ({ id, type: 'wait', name: 'Wait', config: { ...waitDefaults(), kind: 'duration', amount, unit, ...extra } }),
+  waitFor: (id, eventId, timeoutAmount, timeoutUnit) => ({ id, type: 'wait', name: 'Wait for event', config: { ...waitDefaults(), kind: 'event', eventId, timeoutAmount, timeoutUnit } }),
   seg: (id, name, segments) => ({ id, type: 'segmentSplit', name, config: { segments } }),
   eng: (id, name, deliveryStepId) => ({ id, type: 'engagementSplit', name, config: { deliveryStepId } }),
   shuffle: (id, name, paths) => ({ id, type: 'shuffleSplit', name, config: { paths } }),
@@ -856,6 +865,7 @@ const S = {
   exit: id => ({ id, type: 'exit', name: 'Exit', config: {} }),
 };
 const E = (from, to, label = '') => ({ from, to, label });
+const waitDefaults = () => ({ kind: 'duration', amount: 1, unit: 'days', window: null, untilMode: 'weekday', weekdays: [6], date: '2026-10-24', time: '10:00', eventId: 'order_completed', timeoutAmount: 24, timeoutUnit: 'hours', segmentId: null, checkEvery: 'hourly' });
 const L = lang => lang === 'fr' ? 'FR' : 'EN';
 function version(id, journeyId, no, status, note, build, meta = {}) {
   const { steps, edges } = build;
@@ -870,13 +880,16 @@ function abandonBuild(v) {
   edges.push(E(`${p}-event`, `${p}-split`));
   for (const lang of ['fr', 'en']) {
     const b = `${p}-${lang}`;
-    steps.push(S.delivery(`${b}-new`, `First order nudge ${L(lang)}`, 'email', `c-cart-new-${lang}`, { offerId: 'off-10-off' }), S.exit(`${b}-exit-a`));
-    edges.push(E(`${p}-split`, `${b}-new`, `seg-${lang}-today`), E(`${b}-new`, `${b}-exit-a`));
-    steps.push(S.wait(`${b}-wait`, 2, 'hours'), S.delivery(`${b}-email`, `Cart reminder ${L(lang)}`, 'email', v === 14 ? `c-cart-${lang}` : `c-cart-old-${lang}`), S.exit(`${b}-exit-b`));
-    edges.push(E(`${p}-split`, `${b}-wait`, `seg-lang-${lang}`), E(`${b}-wait`, `${b}-email`), E(`${b}-email`, `${b}-exit-b`));
+    // after each Delivery: wait for order_completed (timeout 24 h) → Received → Exit · Timeout → SMS reminder → Exit
+    const after = (id, lang2) => { steps.push(S.waitFor(`${id}-wfe`, 'order_completed', 24, 'hours'), S.exit(`${id}-done`), S.delivery(`${id}-sms`, `SMS reminder ${L(lang2)}`, 'sms', `s-cart-${lang2}`), S.exit(`${id}-exit`)); edges.push(E(id, `${id}-wfe`), E(`${id}-wfe`, `${id}-done`, 'Received'), E(`${id}-wfe`, `${id}-sms`, 'Timeout'), E(`${id}-sms`, `${id}-exit`)); };
+    steps.push(S.delivery(`${b}-new`, `First order nudge ${L(lang)}`, 'email', `c-cart-new-${lang}`, { offerId: 'off-10-off' }));
+    edges.push(E(`${p}-split`, `${b}-new`, `seg-${lang}-today`)); after(`${b}-new`, lang);
+    steps.push(S.wait(`${b}-wait`, 2, 'hours'), S.delivery(`${b}-email`, `Cart reminder ${L(lang)}`, 'email', v === 14 ? `c-cart-${lang}` : `c-cart-old-${lang}`));
+    edges.push(E(`${p}-split`, `${b}-wait`, `seg-lang-${lang}`), E(`${b}-wait`, `${b}-email`)); after(`${b}-email`, lang);
   }
-  steps.push(S.delivery(`${p}-rem`, 'Cart reminder (other)', 'email', 'c-generic-fr'), S.exit(`${p}-exit-r`));
-  edges.push(E(`${p}-split`, `${p}-rem`, 'Remaining'), E(`${p}-rem`, `${p}-exit-r`));
+  steps.push(S.delivery(`${p}-rem`, 'Cart reminder (other)', 'email', 'c-generic-fr'));
+  edges.push(E(`${p}-split`, `${p}-rem`, 'Remaining'));
+  { const id = `${p}-rem`; steps.push(S.waitFor(`${id}-wfe`, 'order_completed', 24, 'hours'), S.exit(`${id}-done`), S.delivery(`${id}-sms`, 'SMS reminder', 'sms', 's-cart-fr'), S.exit(`${id}-exit`)); edges.push(E(id, `${id}-wfe`), E(`${id}-wfe`, `${id}-done`, 'Received'), E(`${id}-wfe`, `${id}-sms`, 'Timeout'), E(`${id}-sms`, `${id}-exit`)); }
   return { steps, edges };
 }
 /* 2. Device back in stock — single event, Prospects, override unsubscribe */
@@ -911,7 +924,7 @@ function welcomeBuild(v) {
       head = null;
     }
     if (head) edges.push(E(`${p}-lang`, head, `seg-lang-${lang}`));
-    steps.push(S.delivery(`${b}-email`, `Welcome email ${L(lang)}`, 'email', `c-welcome-${lang}`, { offerId: 'off-5gb' }), S.wait(`${b}-wait`, 3, 'days'),
+    steps.push(S.delivery(`${b}-email`, `Welcome email ${L(lang)}`, 'email', `c-welcome-${lang}`, { offerId: 'off-5gb' }), S.wait(`${b}-wait`, 3, 'days', { window: { from: '09:00', to: '20:00', days: [1, 2, 3, 4, 5, 6] } }),
       S.eng(`${b}-eng`, `Opened the welcome email? (${L(lang)})`, `${b}-email`),
       S.delivery(`${b}-push`, `Push – app tips ${L(lang)}`, 'push', `p-tips-${lang}`), S.exit(`${b}-exit-a`),
       S.delivery(`${b}-sms`, `SMS – gift reminder ${L(lang)}`, 'sms', `s-gift-${lang}`, { offerId: 'off-5gb' }), S.exit(`${b}-exit-b`), S.exit(`${b}-exit-c`));
@@ -989,7 +1002,7 @@ function seedJourneys() {
   return { JOURNEYS, VERSIONS };
 }
 /* how many contacts each version received, over which window (days ago) */
-const ENROLMENT = { ab12: [70, 85, 40], ab13: [85, 40, 3], ab14: [110, 3, 0], bs1: [40, 115, 60], bs2: [95, 60, 0], wl1: [90, 140, 12], wl2: [120, 12, 0], pf1: [30, 95, 52], pf2: [75, 52, 0], rm1: [60, 125, 95], rm2: [90, 95, 40] };
+const ENROLMENT = { ab12: [70, 85, 40], ab13: [85, 40, 4], ab14: [110, 4, 0], bs1: [40, 115, 60], bs2: [95, 60, 0], wl1: [90, 140, 12], wl2: [120, 12, 0], pf1: [30, 95, 52], pf2: [75, 52, 0], rm1: [60, 125, 95], rm2: [90, 95, 40] };
 
 /* [2][6] simulate: walk contacts through a version and write their event log. Every Monitor
    number is derived from CONTACT_STATES, so step counts add up across splits by construction. */
@@ -1008,7 +1021,7 @@ function simulateVersion(journey, v, contacts) {
     const recent = to === 0 && rng.chance(0.04);
     let t = recent ? now - rng.int(1, 4) * MIN : now - to * DAY - rng.next() * (from - to) * DAY;
     const receivedAt = iso(t);
-    const history = []; let cur = entry, status = 'Exited', lastDelivery = '—', lastSkipped = false;
+    const history = []; let cur = entry, status = 'Exited', lastDelivery = '—', lastSkipped = false, waitKind = null;
     const push = (stepId, event, detail, extra = {}) => history.push({ stepId, event, at: iso(t), detail, ...extra });
     walk: while (cur) {
       push(cur.id, 'entered', `Entered “${cur.name}”`);
@@ -1039,9 +1052,19 @@ function simulateVersion(journey, v, contacts) {
           break;
         }
         case 'wait': {
-          const ms = cur.config.amount * (cur.config.unit === 'hours' ? HOUR : DAY);
-          if (t + ms > now) { status = 'Waiting'; break walk; }
-          t += ms; push(cur.id, 'waited', `Waited ${cur.config.amount} ${cur.config.unit}`); break;
+          const w = cur.config;
+          if (w.kind === 'duration' || w.kind === 'until') {
+            let release = w.kind === 'duration' ? t + w.amount * (w.unit === 'minutes' ? MIN : w.unit === 'hours' ? HOUR : DAY) : untilTime(w, t);
+            if (w.kind === 'duration' && w.window) release = inWindow(release, w.window);
+            if (release > now) { status = 'Waiting'; waitKind = waitKindLabel(w); break walk; }
+            t = release; push(cur.id, 'waited', `Waited · ${waitSummary(cur)}`); break;
+          }
+          const timeout = w.timeoutAmount * (w.timeoutUnit === 'hours' ? HOUR : DAY);
+          const hits = w.kind === 'event' ? hash01('ev' + cur.id + contact.id) < 0.32 : !!(w.segmentId && inSegment(w.segmentId, contact));
+          const at = hits ? t + rng.next() * timeout : t + timeout;
+          if (at > now) { status = 'Waiting'; waitKind = waitKindLabel(w); break walk; }
+          t = at; label = hits ? (w.kind === 'event' ? 'Received' : 'Matched') : 'Timeout';
+          push(cur.id, 'split', hits ? (w.kind === 'event' ? `Received ${w.eventId}` : `Matched ${segById(w.segmentId)?.name ?? ''}`) : `Timeout after ${w.timeoutAmount} ${w.timeoutUnit}`, { label }); break;
         }
         case 'segmentSplit': {
           const hit = cur.config.segments.find(sid => sid && inSegment(sid, contact));
@@ -1061,13 +1084,42 @@ function simulateVersion(journey, v, contacts) {
         case 'controlGroup': push(cur.id, 'control', `Kept for comparison in “${cur.config.name}”`); status = 'Control group'; break walk;
         case 'exit': push(cur.id, 'exited', 'Exited the journey'); status = lastSkipped ? 'Skipped' : 'Exited'; break walk;
       }
-      const nextId = nextOf(cur.id, cur.type === 'segmentSplit' || cur.type === 'engagementSplit' || cur.type === 'shuffleSplit' ? label : undefined);
+      const nextId = nextOf(cur.id, outletsOf(cur).length > 1 ? label : undefined);
       if (!nextId) { push(cur.id, 'exited', 'Path ended'); status = 'Exited'; break; }
       cur = stepOf(nextId);
     }
-    out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
+    out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, waitKind, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
   }
   return out;
+}
+/* wait helpers (pure) */
+const hm = str => { const [h, m] = (str || '00:00').split(':').map(Number); return h * 60 + (m || 0); };
+/* next moment ≥ t inside a send window (time range + weekdays), UTC */
+function inWindow(t, win) {
+  const days = win.days?.length ? win.days : [0, 1, 2, 3, 4, 5, 6];
+  for (let i = 0; i < 14; i++) {
+    const d = new Date(t); const minutes = d.getUTCHours() * 60 + d.getUTCMinutes();
+    if (days.includes(d.getUTCDay()) && minutes >= hm(win.from) && minutes < hm(win.to)) return t;
+    if (days.includes(d.getUTCDay()) && minutes < hm(win.from)) { d.setUTCHours(0, hm(win.from), 0, 0); return d.getTime(); }
+    d.setUTCDate(d.getUTCDate() + 1); d.setUTCHours(0, hm(win.from), 0, 0); t = d.getTime();
+  }
+  return t;
+}
+/* "Until": next chosen weekday at a time, or a date at a time */
+function untilTime(w, t) {
+  if (w.untilMode === 'date') return new Date(`${w.date}T${w.time || '00:00'}:00Z`).getTime();
+  const days = w.weekdays?.length ? w.weekdays : [1];
+  for (let i = 0; i < 8; i++) { const d = new Date(t + i * DAY); if (days.includes(d.getUTCDay())) { d.setUTCHours(0, hm(w.time), 0, 0); if (d.getTime() > t) return d.getTime(); } }
+  return t + 7 * DAY;
+}
+const WAIT_KIND = { duration: 'Duration', until: 'Until', event: 'For event', segment: 'For segment match' };
+const waitKindLabel = w => WAIT_KIND[w.kind] ?? 'Duration';
+function waitSummary(step) {
+  const w = step.config;
+  if (w.kind === 'until') return w.untilMode === 'date' ? `Until ${w.date} ${w.time}` : `Until next ${(w.weekdays?.length ? w.weekdays : [1]).map(dayName).join(' / ')} ${w.time}`;
+  if (w.kind === 'event') return `Wait for ${w.eventId || '?'} · timeout ${w.timeoutAmount} ${w.timeoutUnit === 'hours' ? 'h' : 'd'}`;
+  if (w.kind === 'segment') return `Wait for ${segById(w.segmentId)?.name ?? '?'} · ${w.checkEvery} · timeout ${w.timeoutAmount} ${w.timeoutUnit === 'hours' ? 'h' : 'd'}`;
+  return `Wait ${w.amount} ${w.unit}${w.window ? ` · ${w.window.from}–${w.window.to} ${daysLabel(w.window.days ?? [])}` : ''}`;
 }
 /* mock segment membership, stable per contact */
 function inSegment(sid, contact) {
@@ -1111,7 +1163,7 @@ resetDemo();
 const STEP_META = {
   event: { k: 'Event', tint: 'entry', icon: 'event' },
   delivery: { k: 'Delivery', tint: 'delivery', icon: 'send' },
-  wait: { k: 'Wait', tint: 'timer', icon: 'wait' },
+  wait: { k: 'Wait', tint: 'timer', icon: 'wait' }, // header shows the wait type
   segmentSplit: { k: 'Segment split', tint: 'cond', icon: 'segment' },
   engagementSplit: { k: 'Engagement split', tint: 'cond', icon: 'engagement' },
   shuffleSplit: { k: 'Shuffle split', tint: 'par', icon: 'shuffle' },
@@ -1120,7 +1172,7 @@ const STEP_META = {
 };
 /* palette: Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle · Action: Control group, Exit */
 const PALETTE = [
-  { grp: 'Entry', type: 'event', label: 'Event' }, { grp: 'Message', type: 'delivery', label: 'Delivery' }, { grp: 'Wait', type: 'wait', label: 'Duration' },
+  { grp: 'Entry', type: 'event', label: 'Event' }, { grp: 'Message', type: 'delivery', label: 'Delivery' }, { grp: 'Wait', type: 'wait', label: 'Wait' },
   { grp: 'Split', type: 'segmentSplit', label: 'Segment' }, { grp: 'Split', type: 'engagementSplit', label: 'Engagement' }, { grp: 'Split', type: 'shuffleSplit', label: 'Shuffle' },
   { grp: 'Action', type: 'controlGroup', label: 'Control group' }, { grp: 'Action', type: 'exit', label: 'Exit' },
 ];
@@ -1142,14 +1194,15 @@ function newStep(type) {
 /* the paths that leave a step: key = edge label, label = what the canvas shows */
 function outletsOf(step) {
   switch (step.type) {
-    case 'event': case 'delivery': case 'wait': return [{ key: '', label: '' }];
+    case 'event': case 'delivery': return [{ key: '', label: '' }];
+    case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }];
     case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}` })), { key: 'Remaining', label: 'Remaining' }];
     case 'engagementSplit': return [{ key: 'Opened', label: 'Opened' }, { key: 'Clicked', label: 'Clicked' }, { key: 'Remaining', label: 'Remaining' }];
     case 'shuffleSplit': return step.config.paths.map(p => ({ key: p.label, label: `${p.label} · ${p.pct} %` }));
     default: return [];
   }
 }
-const isSplit = s => s.type === 'segmentSplit' || s.type === 'engagementSplit' || s.type === 'shuffleSplit';
+const isSplit = s => outletsOf(s).length > 1;
 const stepOf = (v, id) => v.steps.find(s => s.id === id);
 const entryOf = v => v.steps.find(s => s.type === 'event');
 const edgeOut = (v, id, key) => v.edges.find(e => e.from === id && e.label === key);
@@ -1191,7 +1244,7 @@ function stepSummary(step, v) {
   switch (step.type) {
     case 'event': return `${eventById(c.eventId)?.name ?? c.eventId} · ${c.entryMode}`;
     case 'delivery': { const it = contentById(c.contentId); return `${CHANNEL_LABEL[c.channel]} · ${it ? `${it.name} ${it.language.toUpperCase()}` : 'no content'}`; }
-    case 'wait': return `${c.amount} ${c.unit}`;
+    case 'wait': return waitSummary(step);
     case 'segmentSplit': return `${c.segments.length} segment${c.segments.length === 1 ? '' : 's'} + Remaining`;
     case 'engagementSplit': return c.deliveryStepId ? `On “${stepOf(v, c.deliveryStepId)?.name ?? '?'}”` : 'No linked delivery';
     case 'shuffleSplit': return c.paths.map(p => `${p.pct} %`).join(' / ');
@@ -1249,6 +1302,8 @@ function validateVersion(v) {
     if (s.type === 'segmentSplit' && (c.segments.length === 0 || c.segments.some(x => !x))) issues.push({ stepId: s.id, message: `“${s.name}”: segment split without a segment on every path.` });
     if (s.type === 'shuffleSplit') { const t = c.paths.reduce((a, p) => a + (+p.pct || 0), 0); if (t !== 100) issues.push({ stepId: s.id, message: `“${s.name}”: shuffle split paths total ${t} %, not 100 %.` }); }
     if (s.type === 'engagementSplit' && (!c.deliveryStepId || !stepOf(v, c.deliveryStepId))) issues.push({ stepId: s.id, message: `“${s.name}”: engagement split without a linked delivery.` });
+    if (s.type === 'wait' && c.kind === 'event' && (!c.eventId || !(c.timeoutAmount > 0))) issues.push({ stepId: s.id, message: `“${s.name}”: wait for event needs an event and a timeout.` });
+    if (s.type === 'wait' && c.kind === 'segment' && (!c.segmentId || !(c.timeoutAmount > 0))) issues.push({ stepId: s.id, message: `“${s.name}”: wait for segment match needs a segment and a timeout.` });
     if (s.type === 'delivery' && !c.channel) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without a channel.` });
     if (s.type === 'delivery' && c.channel && !c.contentId) issues.push({ stepId: s.id, message: `“${s.name}”: delivery without content.` });
     for (const o of outletsOf(s)) if (!edgeOut(v, s.id, o.key)) issues.push({ stepId: s.id, message: `“${s.name}”${o.label ? ` · ${o.label}` : ''}: path does not end with Exit.` });
@@ -1275,7 +1330,7 @@ function diffVersions(pending, active) {
 }
 function describeChange(o, s) {
   if (o.type !== s.type) return `Type changed ${o.type} → ${s.type}`;
-  if (s.type === 'wait') return `Wait ${o.config.amount} ${o.config.unit} → ${s.config.amount} ${s.config.unit}`;
+  if (s.type === 'wait') return `${waitSummary(o)} → ${waitSummary(s)}`;
   if (s.type === 'delivery') { const b = []; if (o.config.channel !== s.config.channel) b.push('channel'); if (o.config.offerId !== s.config.offerId) b.push('offer'); if (o.config.policyId !== s.config.policyId) b.push('communication rules'); if (o.config.sendToUnsubscribed !== s.config.sendToUnsubscribed) b.push('send to unsubscribed'); return b.length ? `Changed: ${b.join(', ')}` : 'Next step changed'; }
   if (s.type === 'shuffleSplit') return 'Shuffle paths changed';
   if (s.type === 'segmentSplit') return 'Segments changed';
@@ -1289,7 +1344,7 @@ const NW = 220, NH = 72, STUB_W = 150, STUB_H = 34, END_R = 11, FIELD_TOP = 50, 
 /* inline fields per node type (spec: node cards show and edit their key settings) */
 function nodeRows(step) {
   switch (step.type) {
-    case 'event': return 4; case 'delivery': return 2; case 'wait': return 1;
+    case 'event': return 4; case 'delivery': return 2; case 'wait': return step.config.kind === 'duration' ? (step.config.window ? 3 : 2) : step.config.kind === 'until' ? 2 : 3;
     case 'segmentSplit': return step.config.segments.length + 1; case 'engagementSplit': return 2;
     case 'shuffleSplit': return step.config.paths.length; case 'controlGroup': return 1; default: return 0;
   }
@@ -1549,7 +1604,7 @@ function rowMenu(el, jid) {
 }
 /* ---- Screen 2 — Journey editor ----------------------------------------------------- */
 const TINT = t => `var(--t-${STEP_META[t].tint})`, INK = t => `var(--t-${STEP_META[t].tint}-i)`;
-const kindLabel = step => step.type === 'delivery' ? `Delivery · ${CHANNEL_LABEL[step.config.channel] ?? ''}` : STEP_META[step.type].k;
+const kindLabel = step => step.type === 'delivery' ? `Delivery · ${CHANNEL_LABEL[step.config.channel] ?? ''}` : step.type === 'wait' ? `Wait · ${waitKindLabel(step.config)}` : STEP_META[step.type].k;
 const nodeIcon = step => step.type === 'delivery' ? (step.config.channel || 'send') : STEP_META[step.type].icon;
 const trunc = (s, n) => (s = String(s ?? ''), s.length > n ? s.slice(0, n - 1) + '…' : s);
 
@@ -1613,7 +1668,15 @@ function nodeFieldsHtml(step, opts) {
     case 'event': return selHtml('Event', 'config.eventId', c.eventId, EVENTS.map(e => [e.id, e.name])) + selHtml('Entry', 'config.entryMode', c.entryMode, [['single', 'Single'], ['batch', 'Batch']])
       + selHtml('List', 'journey.contactList', j?.contactList, DATAMARTS.map(d => [d.id, d.name])) + selHtml('Segment', 'config.segmentId', c.segmentId ?? '', [['', 'Any contact'], ...SEGMENTS.map(x => [x.id, x.name])]);
     case 'delivery': return selHtml('Channel', 'config.channel', c.channel, CHANNELS.map(ch => [ch, CHANNEL_LABEL[ch]])) + selHtml('Content', 'config.contentId', c.contentId ?? '', [['', 'Choose content…'], ...contentsFor(c.channel).map(x => [x.id, `${x.name} · ${x.language.toUpperCase()}`])], 'contentId');
-    case 'wait': return can('config.amount') ? `<div class="nf"><label>Wait</label><input data-nk="config.amount" type="number" min="1" value="${c.amount}" style="width:52px;flex:none"><select data-nk="config.unit"><option value="hours" ${c.unit === 'hours' ? 'selected' : ''}>hours</option><option value="days" ${c.unit === 'days' ? 'selected' : ''}>days</option></select></div>` : ro('Wait', `${c.amount} ${c.unit}`);
+    case 'wait': {
+      const kind = selHtml('Type', 'config.kind', c.kind, Object.entries(WAIT_KIND));
+      const unitSel = (k, val) => `<select data-nk="${k}">${['minutes', 'hours', 'days'].filter(u => k.startsWith('config.timeout') ? u !== 'minutes' : true).map(u => `<option value="${u}" ${val === u ? 'selected' : ''}>${u}</option>`).join('')}</select>`;
+      const timeoutRow = can('config.timeoutAmount') ? `<div class="nf"><label>Timeout</label><input data-nk="config.timeoutAmount" type="number" min="1" value="${c.timeoutAmount}" style="width:52px;flex:none">${unitSel('config.timeoutUnit', c.timeoutUnit)}</div>` : ro('Timeout', `${c.timeoutAmount} ${c.timeoutUnit}`);
+      if (c.kind === 'duration') return kind + (can('config.amount') ? `<div class="nf"><label>Wait</label><input data-nk="config.amount" type="number" min="1" value="${c.amount}" style="width:52px;flex:none">${unitSel('config.unit', c.unit)}</div>` : ro('Wait', `${c.amount} ${c.unit}`)) + (c.window ? ro('Window', `${c.window.from}–${c.window.to} ${daysLabel(c.window.days ?? [])}`) : '');
+      if (c.kind === 'until') return kind + ro('Until', waitSummary(step).replace(/^Until /, ''));
+      if (c.kind === 'event') return kind + selHtml('Event', 'config.eventId', c.eventId ?? '', [['', 'Choose an event…'], ...EVENTS.map(e => [e.id, e.name])]) + timeoutRow;
+      return kind + selHtml('Segment', 'config.segmentId', c.segmentId ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])]) + timeoutRow;
+    }
     case 'segmentSplit': return c.segments.map((sid, i) => selHtml(String.fromCharCode(65 + i), `config.segments.${i}`, sid ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])])).join('') + ro('Rem.', 'Remaining');
     case 'engagementSplit': { const cands = v ? deliveriesBefore(v, step.id) : []; return selHtml('Delivery', 'config.deliveryStepId', c.deliveryStepId ?? '', [['', 'Choose a delivery…'], ...cands.map(d => [d.id, d.name])]) + ro('Paths', 'Opened · Clicked · Remaining'); }
     case 'shuffleSplit': return c.paths.map((p, i) => can('config.paths') ? `<div class="nf"><label title="${esc(p.label)}">${esc(trunc(p.label, 8))}</label><input data-nk="config.paths.${i}.pct" type="number" min="0" max="100" value="${p.pct}" style="width:56px;flex:none"><span class="rotext">%</span></div>` : ro(trunc(p.label, 8), `${p.pct} %`)).join('');
@@ -1851,8 +1914,30 @@ function deliveryPanel(s, v, j, full) {
     <div class="info">${icon('info')} Contacts who can’t be reached on this channel skip this step and continue.</div>
     <button type="button" class="btn outline sm" style="align-self:flex-start" data-sub="content">← Content</button>`;
 }
-/* [5] Duration wait */
-const waitPanel = (s, v, j, full) => `<div class="fld"><label>Wait after the previous step</label><div class="hrow"><input type="number" min="1" max="999" style="width:90px" data-bind="config.amount" data-type="number" value="${s.config.amount}" ${full ? '' : 'disabled'}>${sel('sp-unit', 'config.unit', s.config.unit, [['hours', 'hours'], ['days', 'days']], !full)}</div><small class="muted">Contacts wait here, then continue to the next step.</small></div>`;
+/* [5] Wait: Duration (+ send window) · Until (weekdays or a date, at a time) · For event · For segment match */
+function waitPanel(s, v, j, full) {
+  const c = s.config, dis = full ? '' : 'disabled';
+  const kind = `<div class="fld"><label>Wait type</label><div class="seg">${Object.entries(WAIT_KIND).map(([k, l]) => `<button type="button" class="${c.kind === k ? 'on' : ''}" data-set="config.kind" data-val="${k}" ${dis}>${l}</button>`).join('')}</div></div>`;
+  const timeout = `<div class="fld"><label>Timeout</label><div class="hrow"><input type="number" min="1" style="width:90px" data-bind="config.timeoutAmount" data-type="number" value="${c.timeoutAmount}" ${dis}>${sel('sp-tunit', 'config.timeoutUnit', c.timeoutUnit, [['hours', 'hours'], ['days', 'days']], !full)}</div><small class="muted">Contacts that are still waiting after the timeout take the Timeout path.</small></div>`;
+  const dayToggles = (path, days) => `<div class="hrow wrap" style="gap:4px">${WEEKDAYS.map(([d, l]) => `<button type="button" class="btn xs ${days.includes(d) ? 'dark' : 'outline'}" data-day="${d}" data-days="${path}" ${dis}>${l}</button>`).join('')}</div>`;
+  if (c.kind === 'duration') return `${kind}
+    <div class="fld"><label>Wait after the previous step</label><div class="hrow"><input type="number" min="1" max="999" style="width:90px" data-bind="config.amount" data-type="number" value="${c.amount}" ${dis}>${sel('sp-unit', 'config.unit', c.unit, [['minutes', 'minutes'], ['hours', 'hours'], ['days', 'days']], !full)}</div></div>
+    <label class="ck"><input type="checkbox" data-bind="config.window" ${c.window ? 'checked' : ''} ${dis}><span>Send window<small>Contacts are released only inside the window; otherwise at its next opening.</small></span></label>
+    ${c.window ? `<div class="hrow"><input type="time" class="inp" style="width:110px" data-bind="config.window.from" value="${c.window.from}" ${dis}><span class="muted">–</span><input type="time" class="inp" style="width:110px" data-bind="config.window.to" value="${c.window.to}" ${dis}></div>${dayToggles('config.window.days', c.window.days ?? [])}` : ''}
+    <small class="muted">${esc(waitSummary(s))}</small>`;
+  if (c.kind === 'until') return `${kind}
+    <div class="fld"><label>Release</label><div class="seg"><button type="button" class="${c.untilMode === 'weekday' ? 'on' : ''}" data-set="config.untilMode" data-val="weekday" ${dis}>Next weekday</button><button type="button" class="${c.untilMode === 'date' ? 'on' : ''}" data-set="config.untilMode" data-val="date" ${dis}>Specific date</button></div></div>
+    ${c.untilMode === 'weekday' ? `<div class="fld"><label>Weekdays <small class="muted">— the next one that comes</small></label>${dayToggles('config.weekdays', c.weekdays ?? [])}</div>` : `<div class="fld"><label>Date</label><input type="date" data-bind="config.date" value="${c.date}" ${dis}></div>`}
+    <div class="fld"><label>At</label><input type="time" style="width:120px" data-bind="config.time" value="${c.time}" ${dis}></div>
+    <small class="muted">${esc(waitSummary(s))}</small>`;
+  if (c.kind === 'event') return `${kind}
+    <div class="fld"><label>Expected event <small class="muted">— matched on the same contact</small></label>${sel('sp-wev', 'config.eventId', c.eventId ?? '', [['', 'Choose an event…'], ...EVENTS.map(e => [e.id, `${e.name} · ${e.id}`])], !full, c.eventId ? '' : 'style="border-color:var(--bad)"')}</div>
+    ${timeout}<div class="col" style="gap:4px"><div class="pathrow"><span class="pl">Received</span><span class="small muted">The event arrived for this contact before the timeout.</span></div><div class="pathrow"><span class="pl">Timeout</span><span class="small muted">It did not.</span></div></div>`;
+  return `${kind}
+    <div class="fld"><label>Segment</label>${sel('sp-wseg', 'config.segmentId', c.segmentId ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])], !full, c.segmentId ? '' : 'style="border-color:var(--bad)"')}</div>
+    <div class="fld"><label>Check frequency</label>${sel('sp-wfreq', 'config.checkEvery', c.checkEvery, [['every 15 min', 'every 15 min'], ['hourly', 'hourly'], ['daily', 'daily']], !full)}</div>
+    ${timeout}<div class="col" style="gap:4px"><div class="pathrow"><span class="pl">Matched</span><span class="small muted">The contact entered the segment before the timeout.</span></div><div class="pathrow"><span class="pl">Timeout</span><span class="small muted">It did not.</span></div></div>`;
+}
 /* [5] Segment split: ordered segments; Remaining always present */
 function segmentPanel(s, v, j, full) {
   const segs = s.config.segments;
@@ -1888,6 +1973,16 @@ function commitStepField(j, v, s, path, val, el) {
   if (s.type === 'shuffleSplit' && el?.dataset.rename !== undefined) { // renaming a path renames its edge
     const i = +el.dataset.rename, old = s.config.paths[i].label, e = edgeOut(v, s.id, old); setPath(s, path, val); if (e) e.label = val; touch(j); renderEditor(); return;
   }
+  if (s.type === 'wait' && path === 'config.kind' && val !== s.config.kind) { // the paths change with the type: keep the first connection
+    const oldFirst = outletsOf(s)[0]?.key; s.config.kind = val; const newFirst = outletsOf(s)[0]?.key; const e = edgeOut(v, s.id, oldFirst); if (e) e.label = newFirst; syncEdges(v, s);
+    const AUTO = ['Wait', 'Wait until', 'Wait for event', 'Wait for segment']; if (AUTO.includes(s.name)) s.name = AUTO[['duration', 'until', 'event', 'segment'].indexOf(val)];
+    touch(j); renderEditor(); return;
+  }
+  if (path.startsWith('config.window.') || path === 'config.window') { // send window
+    if (path === 'config.window') s.config.window = val ? { from: '09:00', to: '20:00', days: [1, 2, 3, 4, 5] } : null; else if (s.config.window) { const k = path.split('.')[2]; s.config.window[k] = val; }
+    touch(j); renderEditor(); return;
+  }
+  if (path === 'config.weekdays' || path === 'config.window.days') { touch(j); renderEditor(); return; }
   setPath(s, path, val === '' && path.endsWith('Id') ? null : val);
   if (s.type === 'segmentSplit') { // rename the edge that carried the old segment key
     const keys = outletsOf(s).map(o => o.key); v.edges.filter(e => e.from === s.id).forEach((e, _, arr) => { if (!keys.includes(e.label)) { const free = keys.find(k => k !== 'Remaining' && !arr.some(x => x.label === k)); if (free) e.label = free; } }); syncEdges(v, s);
@@ -1905,6 +2000,7 @@ function wireStepPanel(j, v) {
     if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
   });
   panel.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => commit(b.dataset.set, b.dataset.val)));
+  panel.querySelectorAll('[data-days]').forEach(b => b.addEventListener('click', () => { const d = +b.dataset.day, arr = b.dataset.days === 'config.weekdays' ? (s.config.weekdays ??= []) : (s.config.window.days ??= []); const i = arr.indexOf(d); if (i >= 0) arr.splice(i, 1); else arr.push(d); commit(b.dataset.days, arr); }));
   if ($('sp-dm')) $('sp-dm').onchange = e => commitStepField(j, v, s, 'journey.contactList', e.target.value);
   panel.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => { app.editorSub[s.id] = b.dataset.sub; renderEditor(); }));
 }
@@ -2128,7 +2224,7 @@ function contactsHtml(j, v, states) {
       ${m.step || m.status || m.q ? `<button class="btn link sm" data-act="m-clear">Clear</button>` : ''}<span class="muted small right">${rows.length} contact${rows.length === 1 ? '' : 's'}</span>
     </div>
     <div style="overflow:auto;flex:1;min-height:0"><table class="tbl" id="mc-table"><thead><tr><th>Contact</th><th>Event</th><th>Received at</th><th>Current step</th><th>Status</th><th>Last delivery result</th></tr></thead><tbody>
-      ${rows.length ? rows.slice(0, 200).map(s => { const c = byId.get(s.contactId); return `<tr class="row" data-act="m-contact" data-arg="${s.id}"><td><div class="t1">${esc(c.firstName)} ${esc(c.lastName)}</div><div class="t2">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ''} · ${c.language.toUpperCase()}</div></td><td>${esc(eventById(j.eventId)?.name ?? '')}</td><td class="nw">${fmtDate(s.receivedAt, true)}</td><td>${esc(stepName(s.stepId))}</td><td>${pill(s.status, CONTACT_STATUS_CLS[s.status])}</td><td>${esc(s.lastDelivery)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">No contacts match.</td></tr>'}
+      ${rows.length ? rows.slice(0, 200).map(s => { const c = byId.get(s.contactId); return `<tr class="row" data-act="m-contact" data-arg="${s.id}"><td><div class="t1">${esc(c.firstName)} ${esc(c.lastName)}</div><div class="t2">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ''} · ${c.language.toUpperCase()}</div></td><td>${esc(eventById(j.eventId)?.name ?? '')}</td><td class="nw">${fmtDate(s.receivedAt, true)}</td><td>${esc(stepName(s.stepId))}</td><td>${pill(s.status + (s.status === 'Waiting' && s.waitKind ? ` · ${s.waitKind}` : ''), CONTACT_STATUS_CLS[s.status])}</td><td>${esc(s.lastDelivery)}</td></tr>`; }).join('') : '<tr><td colspan="6" class="empty">No contacts match.</td></tr>'}
     </tbody></table>${rows.length > 200 ? `<div class="empty">Showing the first 200 of ${rows.length}. Narrow the search to see others.</div>` : ''}</div></div>`;
 }
 function wireContacts(j, v, states) {
@@ -2146,10 +2242,10 @@ function contactPanel(stateId) {
   for (let i = 0; i < visited.length - 1; i++) { const e = v.edges.find(x => x.from === visited[i] && x.to === visited[i + 1]); if (e) hlE.add(`${e.from}:${e.label}`); }
   $('drawer-host').innerHTML = `<div class="drawer-bg" data-act="m-close-panel"></div><div class="drawer" role="dialog" aria-modal="true">
     <div class="dh"><div><h3>Where is ${esc(c.firstName)} ${esc(c.lastName)} now?</h3><div class="small muted">${c.id} · ${esc(c.email)}${c.phone ? ` · ${c.phone}` : ' · no phone'}${c.pushToken ? '' : ' · no push token'} · ${c.language.toUpperCase()} · ${esc(c.plan)}</div></div>
-      <div class="right hrow" style="gap:8px"><span class="small muted">Now at</span><b>${esc(stepName(st.stepId))}</b>${pill(st.status, CONTACT_STATUS_CLS[st.status])}<button class="x" data-act="m-close-panel" aria-label="Close">×</button></div></div>
+      <div class="right hrow" style="gap:8px"><span class="small muted">Now at</span><b>${esc(stepName(st.stepId))}</b>${pill(st.status + (st.status === 'Waiting' && st.waitKind ? ` · ${st.waitKind}` : ''), CONTACT_STATUS_CLS[st.status])}<button class="x" data-act="m-close-panel" aria-label="Close">×</button></div></div>
     <div class="db"><div class="dl">
       <div><div class="sec" style="padding-top:0">Event · ${esc(eventById(j.eventId)?.name ?? '')}</div><dl class="kv" style="margin-top:6px"><dt>received at</dt><dd>${fmtDate(st.receivedAt, true)}</dd><dt>version</dt><dd>v${v.no}</dd>${Object.entries(st.payload).map(([k, x]) => `<dt class="mono">${k}</dt><dd style="word-break:break-all">${esc(x)}</dd>`).join('')}</dl></div>
-      <div><div class="sec">Timeline</div><div class="timeline" style="margin-top:8px">${st.history.map(l => `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`).join('')}${st.status === 'Waiting' || st.status === 'In step' ? `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${st.status === 'Waiting' ? 'Waiting for the next step' : 'In step — being processed'}<small>${esc(stepName(st.stepId))}</small></span></div>` : ''}</div></div>
+      <div><div class="sec">Timeline</div><div class="timeline" style="margin-top:8px">${st.history.map(l => `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`).join('')}${st.status === 'Waiting' || st.status === 'In step' ? `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${st.status === 'Waiting' ? `Waiting · ${st.waitKind ?? 'Duration'}` : 'In step — being processed'}<small>${esc(stepName(st.stepId))}</small></span></div>` : ''}</div></div>
     </div><div class="dr"><div class="small muted" style="padding:0 4px 8px">The contact’s path is highlighted on v${v.no}.</div><div class="canvas-wrap" id="pwrap"><svg class="canvas" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div></div>`;
   CANVASES.delete('pwrap'); wireCanvasReset('pwrap');
   drawCanvas('pwrap', buildGraph(v), { orientation: j.orientation, version: v, journey: j, highlight: hl, highlightEdges: hlE });

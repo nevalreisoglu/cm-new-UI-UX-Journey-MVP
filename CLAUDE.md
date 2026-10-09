@@ -64,7 +64,7 @@ look like they came from that file.
 | 2 | Per-customer journey state | each contact's current step and status (Waiting / In step / Exited / Skipped / Control group); Exit node |
 | 3 | Event-triggered entry | single and batch API entry; create contact if missing; payload fields as placeholders; "processed within 60 s" |
 | 4 | Delivery step parity with campaigns | one Delivery step, channel chosen inside (Email / SMS / Push); content picked from a list (channel default preselected); offer; communication rules (policy); override unsubscribe; skip when channel unreachable |
-| 5 | Flow nodes | segment split (+ fixed Remaining), engagement split (opened / clicked + Remaining), shuffle split (%), control group, duration wait |
+| 5 | Flow nodes | segment split (+ fixed Remaining), engagement split (opened / clicked + Remaining), shuffle split (%), control group, Wait (Duration / Until / For event / For segment match) |
 | 6 | Monitoring | step stats on canvas; version and channel breakdown; per-contact event log; single-contact lookup |
 | 7 | Management + test | journey list with status tabs; contact list (Customers / Prospects); test send |
 
@@ -144,8 +144,8 @@ Name, description, contact list (an existing datamart), override unsubscribe (co
 chip on the journey), test users.
 
 ### Palette (left)
-Entry: Event · Delivery · Wait: Duration · Split: Segment, Engagement, Shuffle ·
-Action: Control group, Exit.
+Entry: Event · Delivery · Wait (type chosen inside the card) · Split: Segment, Engagement,
+Shuffle · Action: Control group, Exit.
 
 ### Canvas (centre)
 - **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets. Horizontal (default) / Vertical
@@ -158,7 +158,8 @@ Action: Control group, Exit.
   outline when invalid. A path ending without Exit is drawn dashed. Cards grow to fit their
   fields and auto-layout uses the real card size.
   - Inline fields: Event: event, single / batch, contact list, entry segment · Delivery:
-    channel, content · Duration: amount + unit · Segment split: one segment select per path
+    channel, content · Wait: type, then amount + unit (Duration, window shown as text) /
+    until summary / event + timeout / segment + timeout · Segment split: one segment select per path
     (A, B, …) + fixed "Remaining" row · Engagement split: linked Delivery, paths
     Opened / Clicked / Remaining · Shuffle split: % per path · Control group: name · Exit: nothing.
   - Card and panel edit the same data (`commitStepField`); change one, the other updates at once.
@@ -184,7 +185,18 @@ policy, unsubscribe option, help texts, add / reorder paths.
      the journey setting is on); info "Contacts who can't be reached on this channel skip this
      step and continue."
   Node summary: channel icon + content name (e.g. "Email · Abandon – reminder FR").
-- **Duration wait [5]:** N hours or days after the previous step.
+- **Wait [5]:** one step, its type chosen inside the card; the card header shows the type
+  (`Wait · Duration`). Summary e.g. "Wait 2 days · 09:00–20:00 Mon–Fri", "Until next
+  Saturday 10:00", "Wait for order_completed · timeout 24 h".
+  1. **Duration** — N minutes / hours / days; optional send window (time range + weekdays):
+     contacts are released only inside the window. 1 path.
+  2. **Until** — next weekday(s) (multi-select, like CM's Timer "Next weekday") or a specific
+     date, at a time. 1 path.
+  3. **For event** — expected event from `EVENTS`, matched on the same contact; timeout
+     (hours / days). Paths: "Received" · "Timeout".
+  4. **For segment match** — segment, check frequency, timeout. Paths: "Matched" · "Timeout".
+  Changing the type keeps the first connection and drops the paths that no longer exist.
+  Priority wait is out of scope.
 - **Segment split [5]:** ordered segments (add, remove, move up/down); **Remaining** always
   present, not removable.
 - **Engagement split [5]:** linked Delivery (only earlier Deliveries on the path);
@@ -196,7 +208,8 @@ policy, unsubscribe option, help texts, add / reorder paths.
 ### Validation  [1]
 "Validate" in the toolbar and automatically before Submit (blocking). Checks: no entry; split
 without segment; shuffle ≠ 100; engagement split without linked Delivery; Delivery without
-channel or content; path without Exit. Each issue is clickable and selects the step.
+channel or content; Wait for event without an event or a timeout; Wait for segment match
+without a segment or a timeout; path without Exit (both paths of a two-path Wait). Each issue is clickable and selects the step.
 
 ### Test send  [7]
 Modal: Delivery step, test user, editable sample payload → Send → toast with the rendered
@@ -209,8 +222,9 @@ Journey select + date range; three tabs.
    activated by / when, entered / inside / exited).
 2. **Flow:** read-only canvas of the selected version; stats strip under each node
    (entered · waiting · exited; Delivery also sent · skipped · opened · clicked); count and %
-   on each split path. Clicking a node opens Contacts filtered to it.
-3. **Contacts:** search by id / email / phone; filters: step, status. Columns: contact, event,
+   on each split path and on the Received / Timeout and Matched / Timeout paths of a Wait.
+   Clicking a node opens Contacts filtered to it.
+3. **Contacts:** contacts waiting in a Wait show status "Waiting · <wait type>"; search by id / email / phone; filters: step, status. Columns: contact, event,
    received at, current step, status, last delivery result. Row click → side panel
    **"Where is this contact now?"**: payload, timeline (entered, waited, sent, opened /
    skipped, exited), path highlighted on a mini canvas.
@@ -218,7 +232,7 @@ Journey select + date range; three tabs.
 ## Mock data
 - `EVENTS`: order_abandoned (device_name, cart_url, price), account_created (plan_name,
   activation_date), device_back_in_stock (device_name, product_url), payment_failed (amount,
-  due_date, pay_url), plan_changed (old_plan, new_plan).
+  due_date, pay_url), plan_changed (old_plan, new_plan), order_completed (order_id, amount).
 - `SEGMENTS` include `Langue Français`, `Langue English`, `Account created today`.
 - `CONTENT_ITEMS`: per channel 3–5 single-language items, one default per channel.
 - `DATAMARTS`: the contact lists a journey can target (MAIN DATAMART, PROSPECT DATAMART,
@@ -227,9 +241,9 @@ Journey select + date range; three tabs.
 - `JOURNEYS` (together they cover every roadmap item):
   | Journey | State | Shows |
   |---|---|---|
-  | Device order abandonment | Live; v14 Active ("V14 – new template"), v13 Closing | batch event; segment split Français / Français + account today / English / English + account today / Remaining; one Delivery per path; payload placeholders |
+  | Device order abandonment | Live; v14 Active ("V14 – new template"), v13 Closing | batch event; segment split Français / Français + account today / English / English + account today / Remaining; one Delivery per path, each followed by "Wait for order_completed · timeout 24 h" → Received → Exit, Timeout → SMS reminder → Exit; payload placeholders |
   | Device back in stock | Live | single event, Prospects list, override unsubscribe |
-  | Welcome – account created | Live; v2 Active ("V2 – add control group") | segment split FR / EN, shuffle 90/10 → control group, email Delivery with offer, wait 3 days, engagement split → Push / SMS, skipped contacts |
+  | Welcome – account created | Live; v2 Active ("V2 – add control group") | segment split FR / EN, shuffle 90/10 → control group, email Delivery with offer, wait 3 days with send window 09:00–20:00 Mon–Sat, engagement split → Push / SMS, skipped contacts |
   | Payment failed – reminder | Pending approval; v3 (one step added, one wait changed vs. v2) | approval and View changes |
   | Plan change – confirmation | Draft | validation errors |
   | Summer roaming promo | Past | closed versions |
@@ -237,7 +251,7 @@ Journey select + date range; three tabs.
 ## Out of scope
 Campaigns, segment builder, offer / policy / content pages, content editing, content language
 variants, simulation, project folders, merge paths, webhooks, set attribute, audience sync,
-advanced waits, export, anomaly detection, real integrations, authentication.
+priority wait, export, anomaly detection, real integrations, authentication.
 
 ## Working method
 1. Before coding, write a short plan (sections of `index.html`, data model, render functions,

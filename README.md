@@ -18,7 +18,7 @@ resets the demo; **Reset demo data** in the top bar does the same without reload
 - **Journey editor** — version bar (buttons derived from one transition table), auto-layout
   canvas (Horizontal / Vertical, zoom, fit, pan, collapsible split paths), palette, three ways
   to add a step (drag onto a connection, "+" on a connection, *Add next step* in a panel),
-  node cards that show and edit their key settings inline, step panels (Event entry, Delivery with a Create → Content → Details stepper, Duration wait,
+  node cards that show and edit their key settings inline, step panels (Event entry, Delivery with a Create → Content → Details stepper, Wait with four types,
   Segment / Engagement / Shuffle splits, Control group, Exit), validation (blocks Submit),
   Journey settings, Test send, and the approver's *View changes*.
 - **Journey Monitor** — journey select + date range; Overview (totals, channel breakdown,
@@ -47,7 +47,7 @@ Every interactive element carries an `id` or `data-*` hook; the Playwright specs
 | 2 | Per-customer journey state | `CONTACT_STATES` + `simulateVersion`; Monitor › Contacts and `contactPanel` |
 | 3 | Event-triggered entry | `eventPanel`: catalogue, single / batch (API only), create contact if missing, payload placeholders, sample requests, "processed within 60 s" |
 | 4 | Delivery step parity | `deliveryPanel`: one channel, ready-made single-language content (`CONTENT_ITEMS`, channel default preselected, read-only preview), offer (placeholders + attribution), communication rules, send even to unsubscribed, skip note |
-| 5 | Flow nodes | `segmentPanel` (fixed Remaining; also the FR / EN language split), `engagementPanel`, `shufflePanel`, `controlPanel`, `waitPanel` |
+| 5 | Flow nodes | `segmentPanel` (fixed Remaining; also the FR / EN language split), `engagementPanel`, `shufflePanel`, `controlPanel`, `waitPanel` (Duration + send window · Until · For event · For segment match; `waitSummary`, `inWindow`, `untilTime`) |
 | 6 | Monitoring | `overviewHtml`, Flow tab (`stepStats` on the canvas), `contactsHtml`, `contactPanel` |
 | 7 | Management + test | journey list, contact list = an existing datamart (`DATAMARTS`, chosen in the Event entry panel or Journey settings), `testSendModal` |
 
@@ -103,7 +103,10 @@ Where the brief was ambiguous the simpler behaviour was chosen (see also `docs/d
 17. **Inline card fields** cover the key settings only; the panel has the rest. The "entry
     segment" on the Event entry is an optional filter (default *Any contact*): it is not a
     segment-based entry, which stays out of scope.
-18. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
+18. **Wait for event** in the mock: about a third of the contacts receive the expected event
+    before the timeout (seeded); **Wait for segment match** uses the same mock segment
+    membership as the segment split. Times are UTC. Priority wait is out of scope.
+19. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
 
 ## Out of scope
 
