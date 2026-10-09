@@ -12,13 +12,13 @@ for (const width of [1280, 1440]) {
     await page.screenshot({ path: shot('journey-list', width) });
     await page.click('tr.row[data-jid="j-abandon"] .t1');
     await page.waitForTimeout(300);
-    await page.click('.node[data-id="ab14-fr-email"]');
+    await page.click('.node[data-id="ab14-fr-email"] rect.head');
     await page.screenshot({ path: shot('editor-active', width) });
     await page.click('.nav button[data-view="journeys"]');
     await page.click('#jl-tabs button[data-arg="draft"]');
     await page.click('tr.row[data-jid="j-planchange"] .t1');
     await page.waitForTimeout(300);
-    await page.click('.node[data-id="pc-email"]');
+    await page.click('.node[data-id="pc-email"] rect.head');
     await page.screenshot({ path: shot('editor-draft', width) });
     await page.selectOption('#role-sel', 'approver');
     await page.click('.nav button[data-view="journeys"]');
@@ -35,7 +35,7 @@ for (const width of [1280, 1440]) {
     await page.click('button[data-act="m-tab"][data-arg="flow"]');
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot('monitor-flow', width) });
-    await page.click('#mwrap .node[data-id="wl2-fr-wait"]');
+    await page.click('#mwrap .node[data-id="wl2-fr-wait"] rect.head');
     await page.click('#mc-table tr.row');
     await page.waitForTimeout(300);
     await page.screenshot({ path: shot('monitor-contact', width) });

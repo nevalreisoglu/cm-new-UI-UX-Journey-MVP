@@ -153,12 +153,24 @@ Action: Control group, Exit.
   background. Collapse / expand a split path.
 - Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
   step types); "Add next step" in the selected step's panel.
-- Node card: coloured type header (tokens `--t-*`), name, one-line summary; red outline when
-  invalid. A path ending without Exit is drawn dashed.
+- Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
+  (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
+  outline when invalid. A path ending without Exit is drawn dashed. Cards grow to fit their
+  fields and auto-layout uses the real card size.
+  - Inline fields: Event: event, single / batch, contact list, entry segment · Delivery:
+    channel, content · Duration: amount + unit · Segment split: one segment select per path
+    (A, B, …) + fixed "Remaining" row · Engagement split: linked Delivery, paths
+    Opened / Clicked / Remaining · Shuffle split: % per path · Control group: name · Exit: nothing.
+  - Card and panel edit the same data (`commitStepField`); change one, the other updates at once.
+  - Clicking inside an inline field never starts a pan or a drag.
+  - Active / Closing: inline fields render as plain text, except Delivery → Content.
 
 ### Step panels (right, `aside.card.panel.jinfo`)
+The panel keeps every field plus what is not inline: preview, payload fields, API code, offer,
+policy, unsubscribe option, help texts, add / reorder paths.
 - **Event entry [3]:** event (catalogue), single / batch, contact list (an existing datamart:
-  `DATAMARTS`, e.g. MAIN DATAMART, PROSPECT DATAMART), "Create contact if missing", payload
+  `DATAMARTS`, e.g. MAIN DATAMART, PROSPECT DATAMART), entry segment (optional: only contacts
+  in it enter), "Create contact if missing", payload
   field list (each copyable as `{{field}}`), "API code" (sample single and batch request,
   mono font), info "Processed within 60 s". Batch is API only.
 - **Delivery [4]:** one channel per Delivery. Stepper like CM's delivery plan

@@ -61,7 +61,7 @@ test('new journey → build → validate → submit → approve → content-only
   expect(await page.locator('.eplus').count()).toBe(0);
 
   // Active: only the Delivery content choice is editable, and the change is logged
-  await page.click('.node[data-id]:has-text("Delivery")');
+  await page.click('.node[data-id]:has-text("Delivery") rect.head');
   await page.click('.jinfo .stepper button[data-sub="create"]');
   await expect(page.locator('.chan-card:has-text("Email")')).toBeDisabled();
   await page.click('.jinfo .stepper button[data-sub="content"]');
@@ -111,7 +111,7 @@ test('test send renders offer placeholders; monitor drills from a step to its co
   await expect(page.locator('#toast')).toContainText('+5 GB for 3 months');
   await page.click('.nav button[data-view="monitor"]');
   await page.click('button[data-act="m-tab"][data-arg="flow"]');
-  await page.click('#mwrap .node[data-id="wl2-fr-wait"]');
+  await page.click('#mwrap .node[data-id="wl2-fr-wait"] rect.head');
   await expect(page.locator('#mc-step')).toHaveValue('wl2-fr-wait');
   const n = await page.locator('#mc-table tr.row').count();
   expect(n).toBeGreaterThan(0);

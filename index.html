@@ -535,6 +535,13 @@ body{font-size:14px;line-height:1.43}
 .node.st-removed{opacity:.8}
 .node.st-changed rect.body{stroke:var(--warn);stroke-width:2.5}
 .node text.n{font-size:12px;font-weight:600;fill:var(--green-ink)}
+.nfields{display:flex;flex-direction:column;font-family:var(--sans)}
+.nf{display:flex;align-items:center;gap:4px;height:26px;min-width:0}
+.nf label{width:52px;flex:none;font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nf select,.nf input{flex:1;min-width:0;height:22px;border:1px solid var(--line);border-radius:4px;background:#fff;font:11px var(--sans);color:var(--ink);padding:0 4px;cursor:pointer}
+.nf input{cursor:text}
+.nf select:focus,.nf input:focus{outline:2px solid var(--cta-bright);outline-offset:0;box-shadow:none}
+.nf .rotext{font-size:11px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .node text.s{font-size:10.5px;fill:var(--ink-2)}
 .node text.stat{font-size:9.5px;fill:var(--ink-2)}
 .node text.stat tspan.v{font-weight:700;fill:var(--green-ink)}
@@ -839,7 +846,7 @@ function generateContacts() {
 /* ---- journeys and versions: steps + edges (journeys are trees) ---------------------- */
 const M = 'u-marketer', A = 'u-approver';
 const S = {
-  event: (id, eventId, entryMode, createContact = true) => ({ id, type: 'event', name: 'Event entry', config: { eventId, entryMode, createContact } }),
+  event: (id, eventId, entryMode, createContact = true) => ({ id, type: 'event', name: 'Event entry', config: { eventId, entryMode, createContact, segmentId: null } }),
   delivery: (id, name, channel, contentId, extra = {}) => ({ id, type: 'delivery', name, config: { channel, contentId, offerId: null, policyId: 'pol-default', sendToUnsubscribed: false, ...extra } }),
   wait: (id, amount, unit) => ({ id, type: 'wait', name: `Wait ${amount} ${unit}`, config: { amount, unit } }),
   seg: (id, name, segments) => ({ id, type: 'segmentSplit', name, config: { segments } }),
@@ -997,6 +1004,7 @@ function simulateVersion(journey, v, contacts) {
   const now = NOW.getTime(), out = [];
   for (let i = 0; i < count; i++) {
     const contact = pool[(Math.floor(hash01(v.id + i) * pool.length) + i * 7) % pool.length];
+    if (entry.config.segmentId && !inSegment(entry.config.segmentId, contact)) continue; // entry segment: others are ignored at entry
     const recent = to === 0 && rng.chance(0.04);
     let t = recent ? now - rng.int(1, 4) * MIN : now - to * DAY - rng.next() * (from - to) * DAY;
     const receivedAt = iso(t);
@@ -1036,16 +1044,7 @@ function simulateVersion(journey, v, contacts) {
           t += ms; push(cur.id, 'waited', `Waited ${cur.config.amount} ${cur.config.unit}`); break;
         }
         case 'segmentSplit': {
-          const hit = cur.config.segments.find(sid => {
-            if (!sid) return false;
-            if (sid === 'seg-lang-fr') return contact.language === 'fr';
-            if (sid === 'seg-lang-en') return contact.language === 'en';
-            const today = hash01('today' + contact.id) < 0.22;
-            if (sid === 'seg-fr-today') return contact.language === 'fr' && today;
-            if (sid === 'seg-en-today') return contact.language === 'en' && today;
-            if (sid === 'seg-account-today') return today;
-            return hash01(sid + contact.id) < 0.35;
-          });
+          const hit = cur.config.segments.find(sid => sid && inSegment(sid, contact));
           label = hit ?? 'Remaining';
           push(cur.id, 'split', `Path: ${hit ? segById(hit)?.name ?? hit : 'Remaining'}`, { label }); break;
         }
@@ -1069,6 +1068,16 @@ function simulateVersion(journey, v, contacts) {
     out.push({ id: `${v.id}-${i}`, journeyId: journey.id, versionId: v.id, contactId: contact.id, stepId: history[history.length - 1].stepId, status, receivedAt, lastDelivery, payload: samplePayload(journey.eventId, rng), history });
   }
   return out;
+}
+/* mock segment membership, stable per contact */
+function inSegment(sid, contact) {
+  if (sid === 'seg-lang-fr') return contact.language === 'fr';
+  if (sid === 'seg-lang-en') return contact.language === 'en';
+  const today = hash01('today' + contact.id) < 0.22;
+  if (sid === 'seg-fr-today') return contact.language === 'fr' && today;
+  if (sid === 'seg-en-today') return contact.language === 'en' && today;
+  if (sid === 'seg-account-today') return today;
+  return hash01(sid + contact.id) < 0.35;
 }
 function samplePayload(eventId, rng) {
   const out = {};
@@ -1276,7 +1285,16 @@ function describeChange(o, s) {
 }
 
 /* layout — journeys are trees; rank = depth, cross axis = tidy leaf slots. No library. */
-const NW = 200, NH = 72, STUB_W = 150, STUB_H = 34, END_R = 11;
+const NW = 220, NH = 72, STUB_W = 150, STUB_H = 34, END_R = 11, FIELD_TOP = 50, FIELD_H = 26;
+/* inline fields per node type (spec: node cards show and edit their key settings) */
+function nodeRows(step) {
+  switch (step.type) {
+    case 'event': return 4; case 'delivery': return 2; case 'wait': return 1;
+    case 'segmentSplit': return step.config.segments.length + 1; case 'engagementSplit': return 2;
+    case 'shuffleSplit': return step.config.paths.length; case 'controlGroup': return 1; default: return 0;
+  }
+}
+const nodeH = step => { const r = nodeRows(step); return r ? FIELD_TOP + r * FIELD_H + 8 : NH; };
 /* build the drawable graph: reachable steps, stubs for collapsed split paths, end marks for paths without Exit */
 function buildGraph(v, opts = {}) {
   const collapsed = opts.collapsed ?? new Set(), nodes = [], edges = [], en = entryOf(v);
@@ -1299,14 +1317,15 @@ function buildGraph(v, opts = {}) {
   return { nodes, edges };
 }
 function layoutGraph(graph, orientation, extraH = 0) {
-  const size = n => n.kind === 'step' ? { w: NW, h: NH + extraH } : n.kind === 'stub' ? { w: STUB_W, h: STUB_H } : { w: END_R * 2, h: END_R * 2 };
+  const size = n => n.kind === 'step' ? { w: NW, h: nodeH(n.step) + extraH } : n.kind === 'stub' ? { w: STUB_W, h: STUB_H } : { w: END_R * 2, h: END_R * 2 };
   const byId = new Map(graph.nodes.map(n => [n.id, n])), children = new Map();
   for (const e of graph.edges) { if (!children.has(e.from)) children.set(e.from, []); children.get(e.from).push(e.to); }
   const hasParent = new Set(graph.edges.map(e => e.to));
   const roots = graph.nodes.filter(n => !hasParent.has(n.id)).map(n => n.id);
   const depth = new Map(), cross = new Map(); let slot = 0;
   const GAP_RANK = orientation === 'LR' ? 64 : 48, GAP_CROSS = orientation === 'LR' ? 30 : 40;
-  const rankSize = orientation === 'LR' ? NW : NH + extraH, crossSize = orientation === 'LR' ? NH + extraH : NW;
+  const maxH = Math.max(NH, ...graph.nodes.filter(n => n.kind === 'step').map(n => nodeH(n.step))) + extraH;
+  const rankSize = orientation === 'LR' ? NW : maxH, crossSize = orientation === 'LR' ? maxH : NW;
   const place = (id, d) => {
     depth.set(id, Math.max(d, depth.get(id) ?? 0));
     const kids = (children.get(id) ?? []).filter(k => byId.has(k));
@@ -1319,16 +1338,16 @@ function layoutGraph(graph, orientation, extraH = 0) {
   for (const n of graph.nodes) {
     const s = size(n), d = depth.get(n.id) ?? 0, c = cross.get(n.id) ?? 0;
     const rankPos = 24 + d * (rankSize + GAP_RANK), crossPos = 24 + c * (crossSize + GAP_CROSS);
-    let x = orientation === 'LR' ? rankPos : crossPos + (NW - s.w) / 2, y = orientation === 'LR' ? crossPos + (NH + extraH - s.h) / 2 : rankPos;
+    let x = orientation === 'LR' ? rankPos : crossPos + (NW - s.w) / 2, y = orientation === 'LR' ? crossPos + (maxH - s.h) / 2 : rankPos;
     const saved = n.step?.pos?.[orientation]; if (saved) { x = saved.x; y = saved.y; } // free positioning: a dragged step keeps its place
     pos[n.id] = { x, y, w: s.w, h: s.h }; width = Math.max(width, x + s.w + 24); height = Math.max(height, y + s.h + 24);
   }
   return { pos, width, height };
 }
 /* cubic connector between two boxes; split outlets fan out along the exit side */
-function edgePath(a, b, orientation, index, count, cardH) {
+function edgePath(a, b, orientation, index, count, extraH = 0) {
   const spread = size => count <= 1 ? 0 : ((index + 1) / (count + 1) - 0.5) * size * 0.9;
-  const ah = Math.min(a.h, cardH), bh = Math.min(b.h, cardH);
+  const ah = a.h - (a.h > END_R * 2 && a.h > STUB_H ? extraH : 0), bh = b.h - (b.h > END_R * 2 && b.h > STUB_H ? extraH : 0);
   let x1, y1, x2, y2;
   if (orientation === 'LR') { x1 = a.x + a.w; y1 = a.y + ah / 2 + spread(ah); x2 = b.x; y2 = b.y + bh / 2; }
   else { x1 = a.x + a.w / 2 + spread(a.w); y1 = a.y + a.h; x2 = b.x + b.w / 2; y2 = b.y; }
@@ -1540,14 +1559,14 @@ function canvasFor(wrapId) { if (!CANVASES.has(wrapId)) CANVASES.set(wrapId, { v
 /* draw the graph into <svg class="canvas"> inside the wrap; opts: orientation, editable, selected, invalid(Set), stats(fn step→[[label,value,cls]…]), edgeStat(fn edge→string), highlight(Set of step ids), highlightEdges(Set of "from:key"), statusCls */
 function drawCanvas(wrapId, graph, opts) {
   const wrap = $(wrapId); if (!wrap) return; const cv = canvasFor(wrapId); cv.graph = graph; cv.opts = opts;
-  const extraH = opts.stats ? 32 : 0, cardH = NH + extraH;
+  const extraH = opts.stats ? 32 : 0;
   const lay = layoutGraph(graph, opts.orientation, extraH); cv.layout = lay;
   const byFrom = {}; for (const e of graph.edges) (byFrom[e.from] ??= []).push(e);
   let edges = '', overlays = '';
   for (const e of graph.edges) {
     const a = lay.pos[e.from], b = lay.pos[e.to]; if (!a || !b) continue;
     const sib = byFrom[e.from], idx = sib.indexOf(e);
-    const g = edgePath(a, b, opts.orientation, idx, sib.length, NH);
+    const g = edgePath(a, b, opts.orientation, idx, sib.length, extraH);
     const hl = opts.highlightEdges?.has(e.id);
     const cls = ['edge', e.dangling ? 'dangling' : '', hl ? 'hl' : '', e.status ? `st-${e.status}` : ''].join(' ');
     edges += `<g class="${cls}"><path d="${g.d}"/></g>`;
@@ -1564,22 +1583,43 @@ function drawCanvas(wrapId, graph, opts) {
     const s = n.step, sel = opts.selected === s.id, inv = opts.invalid?.has(s.id), hl = opts.highlight?.has(s.id);
     const cls = ['node', sel ? 'sel' : '', inv ? 'invalid' : '', hl ? 'hl' : '', n.status ? `st-${n.status}` : ''].join(' ');
     const stats = opts.stats?.(s);
+    const H = nodeH(s), rows = nodeRows(s), cardH = H + extraH;
+    const fields = rows ? nodeFieldsHtml(s, opts) : '';
     nodes += `<g class="${cls}" data-id="${s.id}" transform="translate(${p.x},${p.y})" tabindex="0" role="button" aria-label="${esc(s.name)}">
       <rect class="body" width="${NW}" height="${cardH}"/>
       <rect class="head" width="${NW}" height="24" fill="${TINT(s.type)}"/><rect width="${NW}" height="12" y="12" fill="${TINT(s.type)}"/>
       <g transform="translate(9,5)" fill="none" stroke="${INK(s.type)}" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path transform="scale(.58)" d="${ICONS[nodeIcon(s)]}"/></g>
       <text class="k" x="28" y="16" fill="${INK(s.type)}">${esc(kindLabel(s))}</text>
-      ${n.status ? `<text class="dst" x="${NW - 8}" y="16" text-anchor="end" fill="${n.status === 'added' ? 'var(--ok)' : n.status === 'removed' ? 'var(--bad)' : 'var(--warn)'}">${n.status}</text>` : ''}
-      <text class="n" x="10" y="43">${esc(trunc(s.name, 30))}</text>
-      <text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 34))}</text>
-      ${stats ? `<rect class="statbg" x="0" y="${NH}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${NH + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${NH + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
+      ${n.status ? `<text class="dst" x="${NW - (opts.editable && s.type !== 'event' ? 26 : 8)}" y="16" text-anchor="end" fill="${n.status === 'added' ? 'var(--ok)' : n.status === 'removed' ? 'var(--bad)' : 'var(--warn)'}">${n.status}</text>` : ''}
+      <text class="n" x="10" y="43">${esc(trunc(s.name, 32))}</text>
+      ${rows ? `<foreignObject x="8" y="${FIELD_TOP}" width="${NW - 16}" height="${rows * FIELD_H}"><div xmlns="http://www.w3.org/1999/xhtml" class="nfields">${fields}</div></foreignObject>` : `<text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 36))}</text>`}
+      ${stats ? `<rect class="statbg" x="0" y="${H}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${H + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${H + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
       ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
-      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${NH / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
+      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${H / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
   }
   const svg = wrap.querySelector('svg.canvas');
   svg.innerHTML = `<g class="vp" transform="translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})">${edges}${overlays}${nodes}</g>`;
   if (!cv.fitted) fitCanvasOf(wrapId);
+}
+/* inline fields: compact controls inside the card; read-only text when the version is locked
+   (except Delivery → Content). They edit the same data as the right panel. */
+function nodeFieldsHtml(step, opts) {
+  const v = opts.version, j = opts.journey, c = step.config, editable = !!opts.editable, ro = (label, text) => `<div class="nf"><label>${label}</label><span class="rotext" title="${esc(text)}">${esc(text)}</span></div>`;
+  const can = field => opts.inlineEdit && (editable || (v && canEdit(v, step, field)));
+  const selHtml = (label, k, value, options, field = k) => can(field) ? `<div class="nf"><label>${label}</label><select data-nk="${k}">${options.map(([val, l]) => `<option value="${esc(val)}" ${String(val) === String(value ?? '') ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></div>` : ro(label, options.find(o => String(o[0]) === String(value ?? ''))?.[1] ?? '—');
+  const inHtml = (label, k, value, type = 'text', extra = '') => can(k) ? `<div class="nf"><label>${label}</label><input data-nk="${k}" type="${type}" value="${esc(value)}" ${extra}></div>` : ro(label, value);
+  switch (step.type) {
+    case 'event': return selHtml('Event', 'config.eventId', c.eventId, EVENTS.map(e => [e.id, e.name])) + selHtml('Entry', 'config.entryMode', c.entryMode, [['single', 'Single'], ['batch', 'Batch']])
+      + selHtml('List', 'journey.contactList', j?.contactList, DATAMARTS.map(d => [d.id, d.name])) + selHtml('Segment', 'config.segmentId', c.segmentId ?? '', [['', 'Any contact'], ...SEGMENTS.map(x => [x.id, x.name])]);
+    case 'delivery': return selHtml('Channel', 'config.channel', c.channel, CHANNELS.map(ch => [ch, CHANNEL_LABEL[ch]])) + selHtml('Content', 'config.contentId', c.contentId ?? '', [['', 'Choose content…'], ...contentsFor(c.channel).map(x => [x.id, `${x.name} · ${x.language.toUpperCase()}`])], 'contentId');
+    case 'wait': return can('config.amount') ? `<div class="nf"><label>Wait</label><input data-nk="config.amount" type="number" min="1" value="${c.amount}" style="width:52px;flex:none"><select data-nk="config.unit"><option value="hours" ${c.unit === 'hours' ? 'selected' : ''}>hours</option><option value="days" ${c.unit === 'days' ? 'selected' : ''}>days</option></select></div>` : ro('Wait', `${c.amount} ${c.unit}`);
+    case 'segmentSplit': return c.segments.map((sid, i) => selHtml(String.fromCharCode(65 + i), `config.segments.${i}`, sid ?? '', [['', 'Choose a segment…'], ...SEGMENTS.map(x => [x.id, x.name])])).join('') + ro('Rem.', 'Remaining');
+    case 'engagementSplit': { const cands = v ? deliveriesBefore(v, step.id) : []; return selHtml('Delivery', 'config.deliveryStepId', c.deliveryStepId ?? '', [['', 'Choose a delivery…'], ...cands.map(d => [d.id, d.name])]) + ro('Paths', 'Opened · Clicked · Remaining'); }
+    case 'shuffleSplit': return c.paths.map((p, i) => can('config.paths') ? `<div class="nf"><label title="${esc(p.label)}">${esc(trunc(p.label, 8))}</label><input data-nk="config.paths.${i}.pct" type="number" min="0" max="100" value="${p.pct}" style="width:56px;flex:none"><span class="rotext">%</span></div>` : ro(trunc(p.label, 8), `${p.pct} %`)).join('');
+    case 'controlGroup': return inHtml('Name', 'config.name', c.name);
+    default: return '';
+  }
 }
 function fitCanvasOf(wrapId) {
   const wrap = $(wrapId), cv = CANVASES.get(wrapId); if (!wrap || !cv?.layout) return;
@@ -1599,9 +1639,9 @@ function zoomCanvas(wrapId, f) {
 /* pan by drag on the background, wheel zoom, click selects — wired once per wrap */
 function wireCanvas(wrapId, handlers = {}) {
   const wrap = $(wrapId); if (!wrap || wrap.dataset.wired) return; wrap.dataset.wired = '1';
-  const cv = canvasFor(wrapId); let pan = null, drag = null;
+  const cv = canvasFor(wrapId); let pan = null, drag = null, skipClick = false;
   wrap.addEventListener('pointerdown', e => {
-    if (e.button !== 0) return;
+    if (e.button !== 0 || e.target.closest('select, input, label')) return;
     const node = e.target.closest('.node');
     if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
     if (e.target.closest('.node, .eplus, .stub, .collapse')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
@@ -1609,10 +1649,14 @@ function wireCanvas(wrapId, handlers = {}) {
     if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
     if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
   wrap.addEventListener('pointerup', e => {
-    if (drag) { const d = drag; drag = null; if (d.moved) { handlers.onMove(d.id, Math.round(d.x), Math.round(d.y)); return; } }
+    if (drag) { const d = drag; drag = null; skipClick = true; if (d.moved) handlers.onMove(d.id, Math.round(d.x), Math.round(d.y)); else handlers.onSelect?.(d.id); return; }
     const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
   wrap.addEventListener('wheel', e => { e.preventDefault(); const r = wrap.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.min(2.5, Math.max(.2, cv.view.k * (e.deltaY < 0 ? 1.1 : .9))); cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k }; wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`; }, { passive: false });
+  wrap.addEventListener('change', e => { const el = e.target.closest('[data-nk]'); if (!el) return; const node = el.closest('.node'); handlers.onField?.(node.dataset.id, el.dataset.nk, el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value); });
+  wrap.addEventListener('keydown', e => { if (e.target.closest('foreignObject') && e.key === 'Enter') e.target.blur(); });
   wrap.addEventListener('click', e => {
+    if (skipClick) { skipClick = false; return; }
+    if (e.target.closest('select, input')) return;
     const del = e.target.closest('.ndel'); if (del) { handlers.onDelete?.(del.dataset.del); return; }
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
@@ -1667,9 +1711,10 @@ function renderEditor() {
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
+    onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },
   });
   const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
-  drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
+  drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, inlineEdit: true, journey: j, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
   wirePalette(); wireStepPanel(j, v);
   $('vsel').onchange = e => { app.versionId = e.target.value; app.selectedStepId = null; canvasFor('cwrap').fitted = false; renderEditor(); };
 }
@@ -1767,6 +1812,7 @@ function eventPanel(s, v, j, full) {
   const batch = JSON.stringify({ event: c.eventId, items: [{ contact: { id: 'CUS-****4821' }, payload: sample }, { contact: { id: 'CUS-****1193', email: 'new.contact@example.com', language: 'en' }, payload: sample }] }, null, 2);
   return `<div class="fld"><label for="sp-event">Event</label>${sel('sp-event', 'config.eventId', c.eventId, EVENTS.map(e => [e.id, `${e.name} · ${e.id}`]), !full)}<small class="muted">${esc(ev?.description ?? '')}</small></div>
     <div class="fld"><label>Entry</label><div class="seg"><button type="button" class="${c.entryMode === 'single' ? 'on' : ''}" data-set="config.entryMode" data-val="single" ${full ? '' : 'disabled'}>Single</button><button type="button" class="${c.entryMode === 'batch' ? 'on' : ''}" data-set="config.entryMode" data-val="batch" ${full ? '' : 'disabled'}>Batch</button></div><small class="muted">${c.entryMode === 'single' ? 'One contact per API call.' : 'Many contacts per API call. Batch entry is API only — no file upload.'}</small></div>
+    <div class="fld"><label for="sp-seg">Entry segment <small class="muted">— optional</small></label>${sel('sp-seg', 'config.segmentId', c.segmentId ?? '', [['', 'Any contact'], ...SEGMENTS.map(x => [x.id, x.name])], !full)}<small class="muted">Only contacts in this segment enter; others are ignored at entry.</small></div>
     <div class="fld"><label for="sp-dm">Contact list <small class="muted">— an existing datamart</small></label><select id="sp-dm" ${full && !versionsOf(j.id).some(x => x.status === 'active' || x.status === 'closing') ? '' : 'disabled'}>${DATAMARTS.map(d => `<option value="${d.id}" ${j.contactList === d.id ? 'selected' : ''}>${esc(d.name)} · ${d.type}</option>`).join('')}</select><small class="muted">${esc(dmById(j.contactList).desc)} ${fmtNum(contactsOf(j.contactList).length)} contacts.</small></div>
     <label class="ck"><input type="checkbox" data-bind="config.createContact" ${c.createContact ? 'checked' : ''} ${full ? '' : 'disabled'}><span>Create the contact if missing<small>Unknown contacts are added to ${esc(dmName(j.contactList))} from the request.</small></span></label>
     <div class="info">${icon('clock')} Events are processed within 60 s of the API call.</div>
@@ -1831,31 +1877,35 @@ function shufflePanel(s, v, j, full) {
 /* [5] Control group */
 const controlPanel = (s, v, j, full) => `<div class="fld"><label for="sp-cg">Group name</label><input id="sp-cg" data-bind="config.name" value="${esc(s.config.name)}" ${full ? '' : 'disabled'}></div><div class="info">${icon('info')} Contacts stop here and are kept for comparison.</div>`;
 
+/* one commit for card and panel: both edit the same step, then the editor re-renders */
+function commitStepField(j, v, s, path, val, el) {
+  const setPath = (obj, p, x) => { const parts = p.split('.'); let o = obj; for (const q of parts.slice(0, -1)) o = o[q]; o[parts[parts.length - 1]] = x; };
+  if (path === 'journey.contactList') { j.contactList = val; j.testUsers = j.testUsers.filter(id => contactsOf(j.contactList).some(c => c.id === id)); touch(j); renderEditor(); return; }
+  if (s.type === 'delivery' && path === 'config.contentId' && (v.status === 'active' || v.status === 'closing')) {
+    logHistory(v, `Content changed by ${me().name} (${s.name}): ${contentById(s.config.contentId)?.name ?? 'none'} → ${contentById(val)?.name ?? 'none'}`);
+  }
+  if (s.type === 'delivery' && path === 'config.channel' && val !== s.config.channel) { s.config.channel = val; s.config.contentId = defaultContentFor(val)?.id ?? null; touch(j); renderEditor(); return; }
+  if (s.type === 'shuffleSplit' && el?.dataset.rename !== undefined) { // renaming a path renames its edge
+    const i = +el.dataset.rename, old = s.config.paths[i].label, e = edgeOut(v, s.id, old); setPath(s, path, val); if (e) e.label = val; touch(j); renderEditor(); return;
+  }
+  setPath(s, path, val === '' && path.endsWith('Id') ? null : val);
+  if (s.type === 'segmentSplit') { // rename the edge that carried the old segment key
+    const keys = outletsOf(s).map(o => o.key); v.edges.filter(e => e.from === s.id).forEach((e, _, arr) => { if (!keys.includes(e.label)) { const free = keys.find(k => k !== 'Remaining' && !arr.some(x => x.label === k)); if (free) e.label = free; } }); syncEdges(v, s);
+  }
+  if (s.type === 'event') { j.eventId = s.config.eventId; j.entryMode = s.config.entryMode; }
+  touch(j); renderEditor();
+}
 /* bind the panel's inputs: data-bind="path" sets a field on the step; data-set/data-val for segmented buttons; data-sub for the stepper */
 function wireStepPanel(j, v) {
   const panel = $('jpanel'), s = app.selectedStepId ? stepOf(v, app.selectedStepId) : null; if (!panel || !s) return;
-  const setPath = (obj, path, val) => { const parts = path.split('.'); let o = obj; for (const p of parts.slice(0, -1)) o = o[p]; o[parts[parts.length - 1]] = val; };
-  const commit = (path, val, el) => {
-    if (s.type === 'delivery' && path === 'config.contentId' && (v.status === 'active' || v.status === 'closing')) {
-      logHistory(v, `Content changed by ${me().name} (${s.name}): ${contentById(s.config.contentId)?.name ?? 'none'} → ${contentById(val)?.name ?? 'none'}`);
-    }
-    if (s.type === 'shuffleSplit' && el?.dataset.rename !== undefined) { // renaming a path renames its edge
-      const i = +el.dataset.rename, old = s.config.paths[i].label, e = edgeOut(v, s.id, old); setPath(s, path, val); if (e) e.label = val; touch(j); renderEditor(); return;
-    }
-    setPath(s, path, val === '' && path.endsWith('Id') ? null : val);
-    if (s.type === 'segmentSplit') { // rename the edge that carried the old segment key
-      const keys = outletsOf(s).map(o => o.key); v.edges.filter(e => e.from === s.id).forEach((e, _, arr) => { if (!keys.includes(e.label)) { const free = keys.find(k => k !== 'Remaining' && !arr.some(x => x.label === k)); if (free) e.label = free; } }); syncEdges(v, s);
-    }
-    if (s.type === 'event') { j.eventId = s.config.eventId; j.entryMode = s.config.entryMode; }
-    touch(j); renderEditor();
-  };
+  const commit = (path, val, el) => commitStepField(j, v, s, path, val, el);
   panel.querySelectorAll('[data-bind]').forEach(el => {
     const ev = el.tagName === 'INPUT' && (el.type === 'text' || !el.type || el.type === 'number') ? 'change' : 'change';
     el.addEventListener(ev, () => { let val = el.type === 'checkbox' ? el.checked : el.value; if (el.dataset.type === 'number') val = Math.max(0, Number(val) || 0); commit(el.dataset.bind, val, el); });
     if (el.tagName === 'INPUT' && el.type !== 'checkbox') el.addEventListener('keydown', e => { if (e.key === 'Enter') el.blur(); });
   });
   panel.querySelectorAll('[data-set]').forEach(b => b.addEventListener('click', () => commit(b.dataset.set, b.dataset.val)));
-  if ($('sp-dm')) $('sp-dm').onchange = e => { j.contactList = e.target.value; j.testUsers = j.testUsers.filter(id => contactsOf(j.contactList).some(c => c.id === id)); touch(j); renderEditor(); };
+  if ($('sp-dm')) $('sp-dm').onchange = e => commitStepField(j, v, s, 'journey.contactList', e.target.value);
   panel.querySelectorAll('[data-sub]').forEach(b => b.addEventListener('click', () => { app.editorSub[s.id] = b.dataset.sub; renderEditor(); }));
 }
 
@@ -2007,7 +2057,7 @@ function viewChangesModal(j, v) {
     `<button class="btn outline" data-act="modal-close">Close</button>${app.role === 'approver' ? `<button class="btn outline" data-act="v-reject">Reject…</button><button class="btn primary" id="vc-approve">${icon('check')} Approve and activate</button>` : ''}`), 'xl');
   if ($('vc-approve')) $('vc-approve').onclick = () => { closeModal(); handleVersionAct('v-approve'); };
   CANVASES.delete('dwrap'); wireCanvasReset('dwrap');
-  drawCanvas('dwrap', buildGraph(union, { status, edgeStatus }), { orientation: j.orientation, version: union });
+  drawCanvas('dwrap', buildGraph(union, { status, edgeStatus }), { orientation: j.orientation, version: union, journey: j });
 }
 function wireCanvasReset(id, handlers = {}) { const wrap = $(id); if (wrap) { delete wrap.dataset.wired; wireCanvas(id, handlers); } }
 
@@ -2046,7 +2096,7 @@ function renderMonitor() {
     const stats = s => { const o = st[s.id]; if (!o) return null; if (s.type === 'exit') return [['exited', o.entered]]; if (s.type === 'controlGroup') return [['in group', o.entered]]; const base = [['entered', o.entered], ['waiting', o.waiting], ['exited', o.exited]]; if (s.type === 'delivery') base.push(['sent', o.sent], ['skipped', o.skipped, o.skipped ? 'skip' : ''], ...(s.config.channel !== 'sms' ? [['opened', o.opened]] : []), ['clicked', o.clicked]); return base; };
     const edgeStat = e => { const o = st[e.from], s = stepOf(v, e.from); if (!o || !s || !isSplit(s)) return undefined; const n = o.paths[e.key] ?? 0; return `${n} · ${pct(n, o.entered - o.waiting)} %`; };
     wireCanvasReset('mwrap', { onSelect: id => { m.step = id; m.tab = 'contacts'; renderMonitor(); } });
-    drawCanvas('mwrap', buildGraph(v), { orientation: j.orientation, version: v, stats, edgeStat });
+    drawCanvas('mwrap', buildGraph(v), { orientation: j.orientation, version: v, journey: j, stats, edgeStat });
   }
   if (m.tab === 'contacts') wireContacts(j, v, states);
 }
@@ -2102,7 +2152,7 @@ function contactPanel(stateId) {
       <div><div class="sec">Timeline</div><div class="timeline" style="margin-top:8px">${st.history.map(l => `<div class="tl k-${l.event}"><span class="tt">${fmtDate(l.at, true)}</span><span class="dot"></span><span class="tb">${esc(l.detail)}<small>${esc(stepName(l.stepId))}</small></span></div>`).join('')}${st.status === 'Waiting' || st.status === 'In step' ? `<div class="tl k-now"><span class="tt">now</span><span class="dot"></span><span class="tb">${st.status === 'Waiting' ? 'Waiting for the next step' : 'In step — being processed'}<small>${esc(stepName(st.stepId))}</small></span></div>` : ''}</div></div>
     </div><div class="dr"><div class="small muted" style="padding:0 4px 8px">The contact’s path is highlighted on v${v.no}.</div><div class="canvas-wrap" id="pwrap"><svg class="canvas" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div></div>`;
   CANVASES.delete('pwrap'); wireCanvasReset('pwrap');
-  drawCanvas('pwrap', buildGraph(v), { orientation: j.orientation, version: v, highlight: hl, highlightEdges: hlE });
+  drawCanvas('pwrap', buildGraph(v), { orientation: j.orientation, version: v, journey: j, highlight: hl, highlightEdges: hlE });
 }
 function handleMonitorAct(act, arg) {
   const m = app.monitor;

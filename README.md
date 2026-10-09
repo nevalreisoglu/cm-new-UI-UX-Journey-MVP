@@ -18,7 +18,7 @@ resets the demo; **Reset demo data** in the top bar does the same without reload
 - **Journey editor** — version bar (buttons derived from one transition table), auto-layout
   canvas (Horizontal / Vertical, zoom, fit, pan, collapsible split paths), palette, three ways
   to add a step (drag onto a connection, "+" on a connection, *Add next step* in a panel),
-  step panels (Event entry, Delivery with a Create → Content → Details stepper, Duration wait,
+  node cards that show and edit their key settings inline, step panels (Event entry, Delivery with a Create → Content → Details stepper, Duration wait,
   Segment / Engagement / Shuffle splits, Control group, Exit), validation (blocks Submit),
   Journey settings, Test send, and the approver's *View changes*.
 - **Journey Monitor** — journey select + date range; Overview (totals, channel breakdown,
@@ -100,7 +100,10 @@ Where the brief was ambiguous the simpler behaviour was chosen (see also `docs/d
 15. **Offer attribution** is an *Offers* table in Monitor › Overview and "attributed to CODE" in
     the contact timeline; there is no offer page.
 16. **Free positioning** is available in Drafts (drag a step; *Auto-layout* resets); locked versions and the Monitor always use the automatic layout.
-17. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
+17. **Inline card fields** cover the key settings only; the panel has the rest. The "entry
+    segment" on the Event entry is an optional filter (default *Any contact*): it is not a
+    segment-based entry, which stays out of scope.
+18. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
 
 ## Out of scope
 
