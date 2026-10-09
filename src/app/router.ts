@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 // A tiny hash router: #/journeys · #/journeys/:id · #/journeys/:id/monitor
 export type Route =
   | { name: 'journeys' }
-  | { name: 'editor'; journeyId: string; versionId?: string }
+  | { name: 'editor'; journeyId: string; versionId?: string; stepId?: string }
   | { name: 'monitor'; journeyId: string; tab?: string; stepId?: string }
 
 export function parseHash(hash: string): Route {
@@ -12,14 +12,20 @@ export function parseHash(hash: string): Route {
   const q = new URLSearchParams(query)
   if (parts[0] === 'journeys' && parts[1]) {
     if (parts[2] === 'monitor') return { name: 'monitor', journeyId: parts[1], tab: q.get('tab') ?? undefined, stepId: q.get('step') ?? undefined }
-    return { name: 'editor', journeyId: parts[1], versionId: q.get('v') ?? undefined }
+    return { name: 'editor', journeyId: parts[1], versionId: q.get('v') ?? undefined, stepId: q.get('step') ?? undefined }
   }
   return { name: 'journeys' }
 }
 
 export function hrefFor(r: Route): string {
   if (r.name === 'journeys') return '#/journeys'
-  if (r.name === 'editor') return `#/journeys/${r.journeyId}${r.versionId ? `?v=${r.versionId}` : ''}`
+  if (r.name === 'editor') {
+    const q = new URLSearchParams()
+    if (r.versionId) q.set('v', r.versionId)
+    if (r.stepId) q.set('step', r.stepId)
+    const s = q.toString()
+    return `#/journeys/${r.journeyId}${s ? `?${s}` : ''}`
+  }
   const q = new URLSearchParams()
   if (r.tab) q.set('tab', r.tab)
   if (r.stepId) q.set('step', r.stepId)

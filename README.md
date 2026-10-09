@@ -35,7 +35,7 @@ src/
   mock/       event catalogue · segments / offers / policies / users · generated contacts · the six journeys ·
               simulator that walks contacts through a version and writes their event log
   screens/
-    journeys/ Screen 1 — journey list, new-journey dialog
+    journeys/ Screen 1 — journey list
     editor/   Screen 2 — version bar, palette, canvas, step panels, validation bar, settings, test send, diff view
     monitor/  Screen 3 — overview, flow with stats, contacts, "Where is this contact now?"
   ui/         small primitives (icons, modal, pills, formatting)
@@ -53,7 +53,7 @@ docs/plan.md  the plan written before coding
 | 4 | Message step parity | `panels/MessagePanel.tsx`: Email / SMS / Push, FR / EN + default language, placeholders, offer, control group share, communication rules, send to unsubscribed (only when the journey allows it), skip-when-unreachable info |
 | 5 | Flow nodes | `panels/SplitPanels.tsx`, `SimplePanels.tsx`: segment split with fixed Remaining, engagement split (opened / clicked / remaining, linked to an earlier message), shuffle split (%, split evenly, must total 100), control group, duration wait |
 | 6 | Monitoring | `screens/monitor/`: totals, channel and version breakdown, stats strip on the canvas, per-contact log and single-contact lookup; all numbers derived from the simulated logs in `model/stats.ts` |
-| 7 | Management + test | Journey list with status tabs and filters; contact list Customers / Prospects per journey; test send with a rendered preview (`TestSendDialog.tsx`) |
+| 7 | Management + test | Journey list with status tabs and filters; "+ New journey" opens the canvas directly (Event entry and Exit placed, event step selected; name and contact list in Settings); contact list Customers / Prospects per journey; test send with a rendered preview (`TestSendDialog.tsx`) |
 
 ## Seed journeys
 

@@ -7,7 +7,6 @@ import type { Channel, Journey } from '../../model/types'
 import { ChannelIcon, Icon } from '../../ui/Icon'
 import { VersionPill } from '../../ui/Pill'
 import { fmtDate, fmtNum } from '../../ui/format'
-import { NewJourneyDialog } from './NewJourneyDialog'
 
 // Screen 1 — Journey list  [1][7]
 
@@ -20,14 +19,22 @@ const TABS: { id: JourneyStatus; label: string }[] = [
 
 export function JourneyList() {
   const { state } = useStore()
-  const { duplicateJourney, toast } = useActions()
+  const { duplicateJourney, createJourney, toast } = useActions()
   const [tab, setTab] = useState<JourneyStatus>(state.role === 'approver' ? 'pending' : 'live')
   const [q, setQ] = useState('')
   const [fEvent, setFEvent] = useState('')
   const [fChannel, setFChannel] = useState<'' | Channel>('')
   const [fList, setFList] = useState<'' | Journey['contactList']>('')
-  const [showNew, setShowNew] = useState(false)
   const [menuFor, setMenuFor] = useState<string | null>(null)
+
+  // "+ New journey" opens the canvas directly: a draft with Event entry and Exit already placed.
+  // Name and contact list are set in Settings, event and single / batch in the Event entry panel.
+  const newJourney = () => {
+    const n = state.journeys.filter((j) => j.name.startsWith('New journey')).length
+    const j = createJourney({ name: n ? `New journey ${n + 1}` : 'New journey', eventId: EVENTS[0].id, entryMode: 'single', contactList: 'customers' })
+    toast('ok', 'Journey created', 'Pick the event in the Event entry panel; name and contact list are in Settings.')
+    navigate({ name: 'editor', journeyId: j.id, stepId: j.versions[0].steps[0].id })
+  }
 
   const since30 = new Date(NOW.getTime() - 30 * 86400000).toISOString()
   const entered30 = useMemo(() => {
@@ -58,7 +65,7 @@ export function JourneyList() {
       <div className="card" style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
         <div className="card-h">
           <h2>Journeys</h2>
-          <button className="btn primary" onClick={() => setShowNew(true)}>+ New journey</button>
+          <button className="btn primary" onClick={newJourney}>+ New journey</button>
           <p>A journey starts from an event and moves each contact through its steps. Segment-based, scheduled sends are campaigns.</p>
         </div>
         <div className="card-b col" style={{ gap: 12, flex: 1, minHeight: 0 }}>
@@ -173,7 +180,6 @@ export function JourneyList() {
           </div>
         </div>
       </div>
-      {showNew && <NewJourneyDialog onClose={() => setShowNew(false)} />}
     </div>
   )
 }

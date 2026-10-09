@@ -69,7 +69,7 @@ function Shell() {
 
       <main className="main">
         {route.name === 'journeys' && <JourneyList key={state.role} />}
-        {route.name === 'editor' && <JourneyEditor key={`${route.journeyId}:${route.versionId ?? ""}`} journeyId={route.journeyId} versionId={route.versionId} />}
+        {route.name === 'editor' && <JourneyEditor key={`${route.journeyId}:${route.versionId ?? ""}`} journeyId={route.journeyId} versionId={route.versionId} stepId={route.stepId} />}
         {route.name === 'monitor' && <Monitor key={route.journeyId} journeyId={route.journeyId} tab={route.tab} stepId={route.stepId} />}
       </main>
       <Toasts />

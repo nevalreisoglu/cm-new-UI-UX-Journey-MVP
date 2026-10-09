@@ -19,12 +19,12 @@ import type { PaletteItem } from './stepTypes'
 import { Modal } from '../../ui/Modal'
 
 // Screen 2 — Journey editor
-export function JourneyEditor({ journeyId, versionId }: { journeyId: string; versionId?: string }) {
+export function JourneyEditor({ journeyId, versionId, stepId }: { journeyId: string; versionId?: string; stepId?: string }) {
   const journey = useJourney(journeyId)
   const { state } = useStore()
   const act = useActions()
   const [selVersionId, setSelVersionId] = useState<string | undefined>(versionId)
-  const [selected, setSelected] = useState<string | null>(null)
+  const [selected, setSelected] = useState<string | null>(stepId ?? null)
   const [dragging, setDragging] = useState(false)
   const [dlg, setDlg] = useState<'settings' | 'test' | 'diff' | 'reject' | null>(null)
   const [rejectText, setRejectText] = useState('')
