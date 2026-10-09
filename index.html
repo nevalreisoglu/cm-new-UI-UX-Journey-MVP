@@ -30,7 +30,7 @@
   --grey-1:#DFE1DF; --grey-2:#EBECEB;
 
   --bg:#F2F3F5; --surface:#FFFFFF; --surface-2:#F7F7F9; --ink:#242441; --ink-2:#4A4A60; --ink-3:#6B6B80;
-  --line:#DFE1DF; --line-2:#EBECEB;
+  --line:#DFE1DF; --line-2:#EBECEB; --conn:#B4B7C2;
   --green:#242441; --green-ink:#1A1A33; --green-soft:#ECECF3; --grey-btn:#5A5A70; --dark-btn:#3F3F72;
   --orange:#F58220; --orange-ink:#9E560D; --orange-soft:#FDF0E2;
   --ok:#2A7230; --ok-soft:#E8F3E8; --warn:#9E560D; --warn-soft:#FDF0E2; --bad:#C62828; --bad-soft:#FBE9E9; --acc:#00818F; --acc-soft:#E2F6F8;
@@ -194,13 +194,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 .canvas-wrap.panning{cursor:grabbing}
 svg.canvas{display:block;width:100%;height:100%;user-select:none}
 .node rect.body{fill:#fff;stroke:var(--line);stroke-width:1;rx:6;filter:drop-shadow(0 2px 6px rgba(31,41,55,.08))}
-.node.sel rect.body{stroke:var(--cta-bright);stroke-width:2}
+.node.sel rect.body{stroke:var(--cta);stroke-width:2}
 .node.lit rect.body{stroke:var(--orange);stroke-width:3;filter:drop-shadow(0 0 8px rgba(242,107,29,.7))}
 .node.done rect.body{stroke:var(--brand-lilac);stroke-width:2}
 .node.cur rect.body{stroke:var(--sec);stroke-width:3;filter:drop-shadow(0 0 8px rgba(245,130,32,.55));animation:pulse 1.2s ease-in-out infinite}
 @keyframes pulse{0%,100%{stroke-opacity:1}50%{stroke-opacity:.45}}
-.edge.taken path{stroke:var(--green);stroke-width:2.5;stroke-dasharray:none}
-.edge.taken rect{stroke:var(--green)}
 .node rect.head{rx:6}
 .node rect.head2{}
 .node text{font-family:var(--sans)}
@@ -217,11 +215,11 @@ svg.canvas{display:block;width:100%;height:100%;user-select:none}
 .nsel select:focus{outline:2px solid var(--orange);outline-offset:0}
 .node .badge circle{fill:var(--sec);stroke:#fff;stroke-width:2}
 .node .badge text{font-size:10px;fill:#fff;font-weight:700;font-family:var(--mono)}
-.node circle.port{fill:#fff;stroke:var(--ink-3);stroke-width:1.5}
-.node circle.port.out{fill:var(--orange);stroke:var(--orange)}
-.edge path{fill:none;stroke:#9B9BB0;stroke-width:1.5;stroke-dasharray:4 3}
+/* connectors: orthogonal, 1.5 px, a darker shade of --line; crisp at any zoom */
+.edge path.ln{fill:none;stroke:var(--conn);stroke-width:1.5;stroke-linejoin:round;vector-effect:non-scaling-stroke}
+.edge path.hit{fill:none;stroke:transparent;stroke-width:18;pointer-events:stroke}
 .edge text{font-size:10px;fill:var(--ink-2);font-family:var(--sans);font-weight:600}
-.edge rect{fill:#fff;stroke:var(--line)}
+.edge rect.pill{fill:#fff;stroke:var(--line)}
 .legend{position:absolute;right:12px;bottom:12px;font-size:11px;color:var(--ink-3);background:#fff;border:1px solid var(--line);border-radius:4px;padding:5px 9px}
 /* monitor */
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:0 20px 6px}
@@ -552,32 +550,28 @@ body{font-size:14px;line-height:1.43}
 .node .collapse:hover circle{stroke:var(--brand-lilac)}
 .node .collapse path{stroke:var(--ink-2);fill:none;stroke-width:1.6;stroke-linecap:round}
 .node .dst{font-size:9px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
-.edge path{stroke-dasharray:none}
-.edge.dangling path{stroke:var(--bad);stroke-dasharray:5 4}
-.edge.hl path{stroke:var(--sec);stroke-width:2.6}
-.edge.st-added path{stroke:var(--ok);stroke-width:2.2}
-.edge.st-removed path{stroke:var(--bad);stroke-dasharray:6 4;stroke-width:2}
+.edge.hl path.ln{stroke:var(--cta);stroke-width:2}
+.edge.hl rect.pill{stroke:var(--cta)}
+.edge.st-added path.ln{stroke:var(--ok);stroke-width:2}
+.edge.st-removed path.ln{stroke:var(--bad);stroke-dasharray:6 4;stroke-width:2}
 .edge .es{fill:var(--sec-ink)}
-.eplus{cursor:pointer}
+/* "+" on a connection: hidden until the connector is hovered (or a palette card is being dragged) */
+.eplus{cursor:pointer;opacity:0;transition:opacity .12s}
+.edge:hover .eplus,.eplus.hover,.canvas-wrap.dropping .eplus{opacity:1}
 .eplus circle{fill:#fff;stroke:var(--brand-lilac);stroke-width:1.5}
 .eplus path{stroke:var(--brand-navy);stroke-width:1.8;stroke-linecap:round}
 .eplus:hover circle,.eplus.hover circle{fill:var(--cta);stroke:var(--cta)}
 .eplus:hover path,.eplus.hover path{stroke:#fff}
-.node circle.port.out{fill:var(--orange);stroke:var(--orange);cursor:crosshair}
-.nplus{cursor:pointer}
-.nplus circle{fill:#fff;stroke:var(--orange);stroke-width:1.5}
-.nplus path{stroke:var(--sec-ink);stroke-width:1.8;stroke-linecap:round}
-.nplus:hover circle{fill:var(--orange)}
-.nplus:hover path{stroke:#fff}
-.node circle.port.out:hover{r:7}
-.node.target rect.body{stroke:var(--cta-bright);stroke-width:3}
-.ecut{cursor:pointer}
-.ecut circle{fill:#fff;stroke:var(--line);stroke-width:1.5}
-.ecut path{stroke:var(--ink-3);stroke-width:1.6;stroke-linecap:round}
-.ecut:hover circle{stroke:var(--bad);fill:var(--bad-soft)}
-.ecut:hover path{stroke:var(--bad)}
-.canvas-wrap.dropping .eplus circle{r:17;stroke-dasharray:3 3;stroke:var(--cta-bright);fill:rgba(226,246,248,.9)}
-.endmark{fill:#fff;stroke:var(--bad);stroke-width:2;stroke-dasharray:3 3}
+.canvas-wrap.dropping .eplus circle{r:14;stroke-dasharray:3 3;stroke:var(--cta-bright);fill:rgba(226,246,248,.9)}
+/* open path end: a ghost card instead of a red mark */
+.ghost rect{fill:var(--surface-2);stroke:var(--line);stroke-dasharray:4 3;stroke-width:1.5}
+.ghost text{font-size:11px;fill:var(--ink-3);font-weight:600;font-family:var(--sans)}
+.ghost:not(.ro){cursor:pointer}
+.ghost:not(.ro):hover rect{stroke:var(--cta);fill:var(--cta-soft)}
+.ghost:not(.ro):hover text{fill:var(--cta)}
+/* delete only from the card's × (shown on hover) or the panel */
+.node .ndel{cursor:pointer;opacity:0;transition:opacity .12s}
+.node:hover .ndel,.node.sel .ndel{opacity:1}
 .stub rect{fill:var(--green-soft);stroke:var(--brand-lilac);stroke-dasharray:4 3}
 .stub text{font-size:11px;fill:var(--brand-navy)}
 .stub{cursor:pointer}
@@ -1218,7 +1212,7 @@ function outletsOf(step, v) {
   switch (step.type) {
     case 'event': case 'delivery': return [{ key: '', label: '' }, ...parallelOutlets(step, v)];
     case 'wait': return step.config.kind === 'event' ? [{ key: 'Received', label: 'Received' }, { key: 'Timeout', label: 'Timeout' }] : step.config.kind === 'segment' ? [{ key: 'Matched', label: 'Matched' }, { key: 'Timeout', label: 'Timeout' }] : [{ key: '', label: '' }, ...parallelOutlets(step, v)];
-    case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}` })), { key: 'Remaining', label: 'Remaining' }];
+    case 'segmentSplit': return [...step.config.segments.map((sid, i) => ({ key: sid ?? `seg-${i + 1}`, label: `${String.fromCharCode(65 + i)} · ${sid ? (segById(sid)?.name ?? sid) : `Segment ${i + 1}`}` })), { key: 'Remaining', label: 'Remaining' }];
     case 'engagementSplit': return [{ key: 'Opened', label: 'Opened' }, { key: 'Clicked', label: 'Clicked' }, { key: 'Remaining', label: 'Remaining' }];
     case 'shuffleSplit': return step.config.paths.map(p => ({ key: p.label, label: `${p.label} · ${p.pct} %` }));
     default: return [];
@@ -1368,7 +1362,7 @@ function describeChange(o, s) {
 }
 
 /* layout — journeys are trees; rank = depth, cross axis = tidy leaf slots. No library. */
-const NW = 220, NH = 72, STUB_W = 150, STUB_H = 34, END_R = 11, FIELD_TOP = 50, FIELD_H = 26;
+const NW = 220, NH = 72, STUB_W = 150, STUB_H = 34, GHOST_W = 124, GHOST_H = 36, TRUNK = 28, FIELD_TOP = 50, FIELD_H = 26;
 /* inline fields per node type (spec: node cards show and edit their key settings) */
 function nodeRows(step) {
   switch (step.type) {
@@ -1391,7 +1385,7 @@ function buildGraph(v, opts = {}) {
     const isCollapsed = collapsed.has(id) && isSplit(step);
     outletsOf(step).forEach((o, i) => {
       const e = edgeOut(v, id, o.key);
-      if (!e || !e.to) { const eid = `${id}-end-${i}`; nodes.push({ id: eid, kind: 'end' }); edges.push({ id: `${id}:${o.key}`, from: id, to: eid, key: o.key, label: o.label, dangling: true }); return; }
+      if (!e || !e.to) { const eid = `${id}-end-${i}`; nodes.push({ id: eid, kind: 'end', edge: `${id}:${o.key}` }); edges.push({ id: `${id}:${o.key}`, from: id, to: eid, key: o.key, label: o.label, dangling: true }); return; }
       if (isCollapsed) { const sid = `${id}-stub-${i}`; nodes.push({ id: sid, kind: 'stub', parent: id, hidden: subtreeCount(e.to) }); edges.push({ id: `${id}:${o.key}`, from: id, to: sid, key: o.key, label: o.label, edge: e }); return; }
       edges.push({ id: `${id}:${o.key}`, from: id, to: e.to, key: o.key, label: o.label, edge: e, status: opts.edgeStatus?.(e) });
       walk(e.to);
@@ -1400,14 +1394,16 @@ function buildGraph(v, opts = {}) {
   walk(en.id);
   return { nodes, edges };
 }
-function layoutGraph(graph, orientation, extraH = 0) {
-  const size = n => n.kind === 'step' ? { w: NW, h: nodeH(n.step) + extraH } : n.kind === 'stub' ? { w: STUB_W, h: STUB_H } : { w: END_R * 2, h: END_R * 2 };
+/* fixed rank (column / row) and cross spacing: a single next step lands on the same line → straight connector;
+   gapRank is derived once per canvas from the widest path label so the label pills fit after the trunk */
+function layoutGraph(graph, orientation, extraH = 0, gapRank) {
+  const size = n => n.kind === 'step' ? { w: NW, h: nodeH(n.step) + extraH } : n.kind === 'stub' ? { w: STUB_W, h: STUB_H } : { w: GHOST_W, h: GHOST_H };
   const byId = new Map(graph.nodes.map(n => [n.id, n])), children = new Map();
   for (const e of graph.edges) { if (!children.has(e.from)) children.set(e.from, []); children.get(e.from).push(e.to); }
   const hasParent = new Set(graph.edges.map(e => e.to));
   const roots = graph.nodes.filter(n => !hasParent.has(n.id)).map(n => n.id);
   const depth = new Map(), cross = new Map(); let slot = 0;
-  const GAP_RANK = orientation === 'LR' ? 64 : 48, GAP_CROSS = orientation === 'LR' ? 30 : 40;
+  const GAP_RANK = gapRank ?? (orientation === 'LR' ? 72 : 64), GAP_CROSS = orientation === 'LR' ? 28 : 40;
   const maxH = Math.max(NH, ...graph.nodes.filter(n => n.kind === 'step').map(n => nodeH(n.step))) + extraH;
   const rankSize = orientation === 'LR' ? NW : maxH, crossSize = orientation === 'LR' ? maxH : NW;
   const place = (id, d) => {
@@ -1428,17 +1424,35 @@ function layoutGraph(graph, orientation, extraH = 0) {
   }
   return { pos, width, height };
 }
-/* cubic connector between two boxes; split outlets fan out along the exit side */
-function edgePath(a, b, orientation, index, count, extraH = 0) {
-  const spread = size => count <= 1 ? 0 : ((index + 1) / (count + 1) - 0.5) * size * 0.9;
-  const ah = a.h - (a.h > END_R * 2 && a.h > STUB_H ? extraH : 0), bh = b.h - (b.h > END_R * 2 && b.h > STUB_H ? extraH : 0);
-  let x1, y1, x2, y2;
-  if (orientation === 'LR') { x1 = a.x + a.w; y1 = a.y + ah / 2 + spread(ah); x2 = b.x; y2 = b.y + bh / 2; }
-  else { x1 = a.x + a.w / 2 + spread(a.w); y1 = a.y + a.h; x2 = b.x + b.w / 2; y2 = b.y; }
-  const dx = x2 - x1, dy = y2 - y1;
-  const c1 = orientation === 'LR' ? [x1 + dx * .5, y1] : [x1, y1 + dy * .5], c2 = orientation === 'LR' ? [x2 - dx * .5, y2] : [x2, y2 - dy * .5];
-  const at = t => { const m = 1 - t; return { x: m * m * m * x1 + 3 * m * m * t * c1[0] + 3 * m * t * t * c2[0] + t * t * t * x2, y: m * m * m * y1 + 3 * m * m * t * c1[1] + 3 * m * t * t * c2[1] + t * t * t * y2 }; };
-  return { d: `M${x1},${y1} C${c1[0]},${c1[1]} ${c2[0]},${c2[1]} ${x2},${y2}`, mid: at(.5), at };
+/* orthogonal (elbow) connector between two boxes, like Symplify. LR: right-centre → left-centre; TB: bottom-centre → top-centre.
+   multi (the source has several outlets): a short trunk, then a spine across, then each branch leaves the spine towards its card.
+   Returns the path, where the label pill starts and where the "+" sits (on the last segment, after the pill). */
+function edgePath(a, b, orientation, multi, extraH = 0, pillW = 0) {
+  const isCard = n => n.h > GHOST_H && n.h > STUB_H;
+  const ah = a.h - (isCard(a) ? extraH : 0), bh = b.h - (isCard(b) ? extraH : 0);
+  const pts = [];
+  if (orientation === 'LR') {
+    const x1 = a.x + a.w, y1 = a.y + ah / 2, x2 = b.x, y2 = b.y + bh / 2;
+    const straight = Math.abs(y1 - y2) < .5 && x2 > x1;
+    const xm = multi ? x1 + TRUNK : x1 + (x2 - x1) / 2;
+    if (straight) pts.push([x1, y1], [x2, y2]);
+    else if (x2 >= x1 + TRUNK * 1.5) pts.push([x1, y1], [xm, y1], [xm, y2], [x2, y2]);
+    else { const yv = Math.min(a.y, b.y) - 20; pts.push([x1, y1], [x1 + TRUNK, y1], [x1 + TRUNK, yv], [x2 - TRUNK, yv], [x2 - TRUNK, y2], [x2, y2]); } // target behind the source (free position)
+    const [p0, p1] = pts.slice(-2);
+    const label = { x: multi ? p0[0] + 8 : (p0[0] + p1[0]) / 2 - pillW / 2, y: p1[1] - 8, anchor: 'start' };
+    const left = multi && pillW ? p0[0] + 8 + pillW : p0[0];
+    return { d: 'M' + pts.map(p => p.join(',')).join(' L'), mid: { x: (left + p1[0]) / 2, y: p1[1] }, label, pillW };
+  }
+  const x1 = a.x + a.w / 2, y1 = a.y + a.h, x2 = b.x + b.w / 2, y2 = b.y;
+  const straight = Math.abs(x1 - x2) < .5 && y2 > y1;
+  const ym = multi ? y1 + TRUNK : y1 + (y2 - y1) / 2;
+  if (straight) pts.push([x1, y1], [x2, y2]);
+  else if (y2 >= y1 + TRUNK * 1.5) pts.push([x1, y1], [x1, ym], [x2, ym], [x2, y2]);
+  else { const xv = Math.max(a.x + a.w, b.x + b.w) + 20; pts.push([x1, y1], [x1, y1 + TRUNK], [xv, y1 + TRUNK], [xv, y2 - TRUNK], [x2, y2 - TRUNK], [x2, y2]); }
+  const [p0, p1] = pts.slice(-2);
+  const label = { x: p1[0] - pillW / 2, y: multi ? p0[1] + 6 : (p0[1] + p1[1]) / 2 - 8, anchor: 'middle' };
+  const top = multi && pillW ? p0[1] + 22 : p0[1];
+  return { d: 'M' + pts.map(p => p.join(',')).join(' L'), mid: { x: p1[0], y: (top + p1[1]) / 2 }, label, pillW };
 }
 
 /* [6] stats derived from CONTACT_STATES */
@@ -1644,26 +1658,30 @@ function canvasFor(wrapId) { if (!CANVASES.has(wrapId)) CANVASES.set(wrapId, { v
 function drawCanvas(wrapId, graph, opts) {
   const wrap = $(wrapId); if (!wrap) return; const cv = canvasFor(wrapId); cv.graph = graph; cv.opts = opts;
   const extraH = opts.stats ? 32 : 0;
-  const lay = layoutGraph(graph, opts.orientation, extraH); cv.layout = lay;
+  const pillW = l => Math.max(30, Math.round(l.length * 5.6 + 14));
+  const labelOf = e => { const stat = opts.edgeStat?.(e), text = trunc(e.label, 24), all = text + (stat ? `  ${stat}` : ''); return { text, full: e.label, stat, w: all.trim() ? pillW(all) : 0 }; };
+  const labels = new Map(graph.edges.map(e => [e.id, labelOf(e)]));
+  const maxPill = Math.max(0, ...[...labels.values()].map(l => l.w));
+  const gapRank = opts.orientation === 'LR' ? (maxPill ? TRUNK + maxPill + 48 : 72) : (maxPill ? 88 : 64);
+  const lay = layoutGraph(graph, opts.orientation, extraH, gapRank); cv.layout = lay;
   const byFrom = {}; for (const e of graph.edges) (byFrom[e.from] ??= []).push(e);
-  let edges = '', overlays = '';
+  let edges = '';
   for (const e of graph.edges) {
     const a = lay.pos[e.from], b = lay.pos[e.to]; if (!a || !b) continue;
-    const sib = byFrom[e.from], idx = sib.indexOf(e);
-    const g = edgePath(a, b, opts.orientation, idx, sib.length, extraH);
+    const multi = byFrom[e.from].length > 1, lb = labels.get(e.id);
+    const g = edgePath(a, b, opts.orientation, multi, extraH, lb.w);
     const hl = opts.highlightEdges?.has(e.id);
-    const cls = ['edge', e.dangling ? 'dangling' : '', hl ? 'hl' : '', e.status ? `st-${e.status}` : ''].join(' ');
-    edges += `<g class="${cls}"><path d="${g.d}"/></g>`;
-    const stat = opts.edgeStat?.(e); const label = e.label + (stat ? `  ${stat}` : '');
-    if (label.trim()) { const lp = g.at(sib.length > 1 ? .2 + (idx / Math.max(1, sib.length - 1)) * (opts.editable ? .22 : .5) : .5), w = Math.max(30, label.length * 5.6 + 14); overlays += `<g class="edge ${e.status ? `st-${e.status}` : ''}"><rect x="${lp.x - w / 2}" y="${lp.y - 8}" width="${w}" height="16" rx="8"/><text x="${lp.x}" y="${lp.y + 3.5}" text-anchor="middle">${esc(e.label)}${stat ? `<tspan class="es"> ${esc(stat)}</tspan>` : ''}</text></g>`; }
-    if (opts.editable) overlays += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
-    // remove the connection: the steps hanging from it go with it, the path stays open
-    if (opts.editable && (!e.dangling || isParKey(e.key))) { const c = g.at(.5 + (opts.orientation === 'LR' ? .0 : .0)), ox = opts.orientation === 'LR' ? 24 : 0, oy = opts.orientation === 'LR' ? 0 : 24; overlays += `<g class="ecut" data-edge="${e.id}" transform="translate(${c.x + ox},${c.y + oy})"><title>Remove this connection and the steps after it</title><circle r="8"/><path d="M-3,-3 L3,3 M3,-3 L-3,3"/></g>`; }
+    const cls = ['edge', e.dangling ? 'open' : '', hl ? 'hl' : '', e.status ? `st-${e.status}` : ''].join(' ');
+    let inner = `<path class="hit" d="${g.d}"/><path class="ln" d="${g.d}"/>`;
+    // label pill at the start of the branch (A · Langue Français, Remaining, Received, 90 % …)
+    if (lb.w) inner += `<rect class="pill" x="${g.label.x}" y="${g.label.y}" width="${lb.w}" height="16" rx="8"><title>${esc(lb.full)}</title></rect><text x="${g.label.x + lb.w / 2}" y="${g.label.y + 11.5}" text-anchor="middle">${esc(lb.text)}${lb.stat ? `<tspan class="es"> ${esc(lb.stat)}</tspan>` : ''}</text>`;
+    if (opts.editable) inner += `<g class="eplus" data-edge="${e.id}" transform="translate(${g.mid.x},${g.mid.y})"><title>Add a step here</title><circle r="10"/><path d="M-4,0H4M0,-4V4"/></g>`;
+    edges += `<g class="${cls}" data-edge="${e.id}">${inner}</g>`;
   }
   let nodes = '';
   for (const n of graph.nodes) {
     const p = lay.pos[n.id]; if (!p) continue;
-    if (n.kind === 'end') { nodes += `<g transform="translate(${p.x + END_R},${p.y + END_R})"><title>This path does not end with Exit</title><circle class="endmark" r="${END_R - 2}"/></g>`; continue; }
+    if (n.kind === 'end') { nodes += `<g class="ghost ${opts.editable ? '' : 'ro'}" data-edge="${n.edge}" transform="translate(${p.x},${p.y})"><title>${opts.editable ? 'Add a step or an Exit on this path' : 'This path does not end with Exit'}</title><rect width="${p.w}" height="${p.h}" rx="6"/><text x="${p.w / 2}" y="${p.h / 2 + 4}" text-anchor="middle">+ Add step</text></g>`; continue; }
     if (n.kind === 'stub') { nodes += `<g class="stub" data-expand="${n.parent}" transform="translate(${p.x},${p.y})"><title>Expand</title><rect width="${p.w}" height="${p.h}" rx="6"/><text x="${p.w / 2}" y="${p.h / 2 + 4}" text-anchor="middle">${n.hidden} step${n.hidden === 1 ? '' : 's'} hidden</text></g>`; continue; }
     const s = n.step, sel = opts.selected === s.id, inv = opts.invalid?.has(s.id), hl = opts.highlight?.has(s.id);
     const cls = ['node', sel ? 'sel' : '', inv ? 'invalid' : '', hl ? 'hl' : '', n.status ? `st-${n.status}` : ''].join(' ');
@@ -1679,13 +1697,12 @@ function drawCanvas(wrapId, graph, opts) {
       <text class="n" x="10" y="43">${esc(trunc(s.name, 32))}</text>
       ${rows ? `<foreignObject x="8" y="${FIELD_TOP}" width="${NW - 16}" height="${rows * FIELD_H}"><div xmlns="http://www.w3.org/1999/xhtml" class="nfields">${fields}</div></foreignObject>` : `<text class="s" x="10" y="60">${esc(trunc(stepSummary(s, opts.version), 36))}</text>`}
       ${stats ? `<rect class="statbg" x="0" y="${H}" width="${NW}" height="${extraH}"/><text class="stat" x="8" y="${H + 13}">${stats.slice(0, 3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text><text class="stat" x="8" y="${H + 26}">${stats.slice(3).map(([l, v, c]) => `<tspan class="v ${c ?? ''}">${v}</tspan> ${esc(l)}`).join('  ')}</text>` : ''}
-      ${opts.editable && s.type !== 'exit' && s.type !== 'controlGroup' ? `<circle class="port out" data-port="${s.id}" cx="${opts.orientation === 'LR' ? NW : NW / 2}" cy="${opts.orientation === 'LR' ? Math.min(H, NH) / 2 : H}" r="5"><title>Drag to another step to connect</title></circle>${canParallel(s) || outletsOf(s, opts.version).some(o => !edgeOut(opts.version, s.id, o.key)?.to) ? `<g class="nplus" data-node="${s.id}" transform="translate(${opts.orientation === 'LR' ? NW + 2 : NW / 2 + 14},${opts.orientation === 'LR' ? Math.min(H, NH) / 2 + 16 : H + 2})"><title>Add a step on a new branch from this step</title><circle r="9"/><path d="M-4,0H4M0,-4V4"/></g>` : ''}` : ''}
       ${opts.editable && s.type !== 'event' ? `<g class="ndel" data-del="${s.id}" transform="translate(${NW - 12},12)"><title>Delete step</title><circle r="8" fill="#fff" stroke="#DFE1DF"/><path d="M-3,-3 L3,3 M3,-3 L-3,3" stroke="#6B6B80" stroke-width="1.6" stroke-linecap="round"/></g>` : ''}
-      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW},${H / 2})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
+      ${opts.collapsible && isSplit(s) ? `<g class="collapse" data-collapse="${s.id}" transform="translate(${NW - 14},${H - 14})"><title>${opts.collapsed?.has(s.id) ? 'Expand paths' : 'Collapse paths'}</title><circle r="9"/><path d="${opts.collapsed?.has(s.id) ? 'M-4,-1 L0,-5 L4,-1 M-4,2 L0,6 L4,2' : 'M-4,-5 L0,-1 L4,-5 M-4,2 L0,6 L4,2'}" transform="scale(.8)"/></g>` : ''}
     </g>`;
   }
   const svg = wrap.querySelector('svg.canvas');
-  svg.innerHTML = `<g class="vp" transform="translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})">${edges}${overlays}${nodes}</g>`;
+  svg.innerHTML = `<g class="vp" transform="translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})">${edges}${nodes}</g>`;
   if (!cv.fitted) fitCanvasOf(wrapId);
 }
 /* inline fields: compact controls inside the card; read-only text when the version is locked
@@ -1737,18 +1754,14 @@ function wireCanvas(wrapId, handlers = {}) {
   wrap.addEventListener('pointerdown', e => {
     if (e.button !== 0 || e.target.closest('select, input, label')) return;
     const node = e.target.closest('.node');
-    const port = e.target.closest('.port.out');
-    if (port && handlers.onConnect) { const p = cv.layout?.pos[port.dataset.port]; drag = { link: true, id: port.dataset.port, sx: e.clientX, sy: e.clientY, x0: p.x + +port.getAttribute('cx'), y0: p.y + +port.getAttribute('cy') }; wrap.setPointerCapture(e.pointerId); return; }
-    if (node && handlers.onMove && !e.target.closest('.collapse, .ndel, .nplus')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
-    if (e.target.closest('.node, .eplus, .ecut, .stub, .collapse, .port, .nplus')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
+    if (node && handlers.onMove && !e.target.closest('.collapse, .ndel')) { const p = cv.layout?.pos[node.dataset.id]; if (p) { drag = { id: node.dataset.id, el: node, sx: e.clientX, sy: e.clientY, ox: p.x, oy: p.y, x: p.x, y: p.y, moved: false }; wrap.setPointerCapture(e.pointerId); } return; }
+    if (e.target.closest('.node, .eplus, .stub, .collapse, .ghost')) return; pan = { sx: e.clientX, sy: e.clientY, ox: cv.view.x, oy: cv.view.y, moved: false }; wrap.setPointerCapture(e.pointerId); });
   wrap.addEventListener('pointermove', e => {
-    if (drag?.link) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; drag.moved = true; let tmp = wrap.querySelector('.tmpline'); if (!tmp) { tmp = document.createElementNS('http://www.w3.org/2000/svg', 'path'); tmp.setAttribute('class', 'tmpline'); wrap.querySelector('.vp').appendChild(tmp); } tmp.setAttribute('d', `M${drag.x0},${drag.y0} L${drag.x0 + dx},${drag.y0 + dy}`); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.node'); wrap.querySelectorAll('.node.target').forEach(n => n.classList.remove('target')); if (over && over.dataset.id !== drag.id) over.classList.add('target'); return; }
     if (drag) { const dx = (e.clientX - drag.sx) / cv.view.k, dy = (e.clientY - drag.sy) / cv.view.k; if (Math.abs(dx) + Math.abs(dy) > 2) drag.moved = true; if (drag.moved) { drag.x = drag.ox + dx; drag.y = drag.oy + dy; drag.el.setAttribute('transform', `translate(${drag.x},${drag.y})`); drag.el.style.cursor = 'grabbing'; } return; }
     if (!pan) return; const dx = e.clientX - pan.sx, dy = e.clientY - pan.sy; if (Math.abs(dx) + Math.abs(dy) > 3) pan.moved = true; if (pan.moved) { cv.view.x = pan.ox + dx; cv.view.y = pan.oy + dy; wrap.classList.add('panning'); wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); } });
   wrap.addEventListener('pointerup', e => {
-    if (drag?.link) { const d = drag; drag = null; skipClick = true; wrap.querySelector('.tmpline')?.remove(); const over = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.node'); wrap.querySelectorAll('.node.target').forEach(n => n.classList.remove('target')); if (over && over.dataset.id !== d.id) handlers.onConnect(d.id, over.dataset.id); return; }
     if (drag) { const d = drag; drag = null; skipClick = true; if (d.moved) handlers.onMove(d.id, Math.round(d.x), Math.round(d.y)); else handlers.onSelect?.(d.id); return; }
-    const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse')) handlers.onBackground?.(); });
+    const was = pan; pan = null; wrap.classList.remove('panning'); if (was && !was.moved && !e.target.closest('.node, .eplus, .stub, .collapse, .ghost')) handlers.onBackground?.(); });
   wrap.addEventListener('wheel', e => { e.preventDefault(); const r = wrap.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top, k = Math.min(2.5, Math.max(.2, cv.view.k * (e.deltaY < 0 ? 1.1 : .9))); cv.view = { k, x: mx - (mx - cv.view.x) * k / cv.view.k, y: my - (my - cv.view.y) * k / cv.view.k }; wrap.querySelector('.vp')?.setAttribute('transform', `translate(${cv.view.x},${cv.view.y}) scale(${cv.view.k})`); const z = wrap.parentElement?.querySelector('.zoomlbl'); if (z) z.textContent = `${Math.round(k * 100)} %`; }, { passive: false });
   wrap.addEventListener('change', e => { const el = e.target.closest('[data-nk]'); if (!el) return; const node = el.closest('.node'); handlers.onField?.(node.dataset.id, el.dataset.nk, el.type === 'number' ? Math.max(0, Number(el.value) || 0) : el.value); });
   wrap.addEventListener('keydown', e => { if (e.target.closest('foreignObject') && e.key === 'Enter') e.target.blur(); });
@@ -1758,16 +1771,16 @@ function wireCanvas(wrapId, handlers = {}) {
     const del = e.target.closest('.ndel'); if (del) { handlers.onDelete?.(del.dataset.del); return; }
     const col = e.target.closest('.collapse'); if (col) { handlers.onCollapse?.(col.dataset.collapse); return; }
     const stub = e.target.closest('.stub'); if (stub) { handlers.onCollapse?.(stub.dataset.expand); return; }
-    const cut = e.target.closest('.ecut'); if (cut) { handlers.onCut?.(cut.dataset.edge); return; }
-    const np = e.target.closest('.nplus'); if (np) { handlers.onBranch?.(np.dataset.node, e); return; }
     const plus = e.target.closest('.eplus'); if (plus) { handlers.onPlus?.(plus.dataset.edge, e); return; }
+    const ghost = e.target.closest('.ghost:not(.ro)'); if (ghost) { handlers.onPlus?.(ghost.dataset.edge, e, true); return; }
     const node = e.target.closest('.node'); if (node) { handlers.onSelect?.(node.dataset.id); return; }
   });
   wrap.addEventListener('keydown', e => { const node = e.target.closest?.('.node'); if (node && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); handlers.onSelect?.(node.dataset.id); } });
-  // drop from the palette onto a connection's "+"
-  wrap.addEventListener('dragover', e => { const plus = e.target.closest('.eplus'); if (plus && e.dataTransfer.types.includes('application/x-journey-step')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; wrap.querySelectorAll('.eplus.hover').forEach(x => x.classList.remove('hover')); plus.classList.add('hover'); } });
-  wrap.addEventListener('dragleave', e => { e.target.closest?.('.eplus')?.classList.remove('hover'); });
-  wrap.addEventListener('drop', e => { const plus = e.target.closest('.eplus'); if (!plus) return; e.preventDefault(); const type = e.dataTransfer.getData('application/x-journey-step'); if (type) handlers.onDrop?.(plus.dataset.edge, type); });
+  // drop from the palette onto a connection (or an open path's ghost card)
+  const dropTarget = e => e.target.closest?.('.edge, .ghost:not(.ro)');
+  wrap.addEventListener('dragover', e => { const t = dropTarget(e); if (t && e.dataTransfer.types.includes('application/x-journey-step')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; wrap.querySelectorAll('.eplus.hover').forEach(x => x.classList.remove('hover')); t.querySelector('.eplus')?.classList.add('hover'); } });
+  wrap.addEventListener('dragleave', e => { dropTarget(e)?.querySelector('.eplus')?.classList.remove('hover'); });
+  wrap.addEventListener('drop', e => { const t = dropTarget(e); if (!t) return; e.preventDefault(); const type = e.dataTransfer.getData('application/x-journey-step'); if (type) handlers.onDrop?.(t.dataset.edge, type); });
 }
 
 function renderEditor() {
@@ -1791,7 +1804,7 @@ function renderEditor() {
               <button class="ic" id="btn-zout" data-act="zoom-out" title="Zoom out">${icon('zoomout')}<span>Zoom out</span></button>
               <button class="ic" id="btn-zin" data-act="zoom-in" title="Zoom in">${icon('zoomin')}<span>Zoom in</span></button>
               <button class="ic on" id="btn-fit" data-act="fit" title="Fit to view">${icon('fit')}<span>Fit</span></button>
-              <span class="muted small zoomlbl num" style="padding:0 6px">100 %</span>
+              <span class="muted small zoomlbl num" style="padding:0 6px">${Math.round(canvasFor('cwrap').view.k * 100)} %</span>
               ${locked ? '' : `<button class="ic" id="btn-autolayout" data-act="autolayout" title="Put every step back on the automatic layout" ${v.steps.some(s => s.pos?.[j.orientation]) ? '' : 'disabled'}>${icon('fit')}<span>Auto-layout</span></button>`}
               ${locked ? '' : `<button class="ic" id="btn-validate" data-act="validate" title="Validate">${icon('validate')}<span>Validate</span></button><button class="ic" id="btn-del" data-act="delete-step" title="Delete step" ${!app.selectedStepId || stepOf(v, app.selectedStepId)?.type === 'event' ? 'disabled' : ''}>${icon('trash')}<span>Delete step</span></button>`}
               <div class="dir"><button class="${j.orientation === 'LR' ? '' : 'off'}" data-act="orient" data-arg="LR" title="Left to right">${icon('lr')}Horizontal</button><button class="${j.orientation === 'TB' ? '' : 'off'}" data-act="orient" data-arg="TB" title="Top to bottom">${icon('tb')}Vertical</button></div>
@@ -1807,29 +1820,16 @@ function renderEditor() {
     onSelect: id => { app.selectedStepId = id; renderEditor(); if (locked && app.lockHintFor !== v.id) { app.lockHintFor = v.id; toast('Structure locked', v.status === 'active' || v.status === 'closing' ? 'Steps cannot be moved, added or deleted on an Active version. Use “Copy to new version” and edit the draft; only the Delivery content can change here.' : v.status === 'pending' ? 'This version is waiting for approval. Withdraw it to edit, or copy it to a new version.' : 'This version is closed. Copy it to a new version to continue.', 'warn'); } },
     onDelete: locked ? null : id => { const st = stepOf(v, id); if (!st || st.type === 'event') return; removeStep(v, id); if (app.selectedStepId === id) app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); },
     onBackground: () => { if (app.selectedStepId) { app.selectedStepId = null; renderEditor(); } closeStepMenu(); },
-    onPlus: (edgeId, e) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type), { title: 'Insert on this connection' }),
-    onBranch: (id, e) => { const src = stepOf(v, id); if (!src) return; stepMenu(e.clientX, e.clientY, type => addBranch(id, type), { title: 'Add a branch from this step' }); },
+    onPlus: (edgeId, e, open) => stepMenu(e.clientX, e.clientY, type => addOnEdge(edgeId, type), { title: open ? 'Add a step on this path' : 'Insert on this connection' }),
     onDrop: (edgeId, type) => addOnEdge(edgeId, type),
-    onCut: edgeId => { const i = edgeId.indexOf(':'), from = edgeId.slice(0, i), key = edgeId.slice(i + 1), edge = edgeOut(v, from, key); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); if (!isParKey(key)) v.edges.push(E(from, null, key)); if (drop.has(app.selectedStepId)) app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); toast(isParKey(key) ? 'Parallel branch removed' : 'Connection removed', `${drop.size} step${drop.size === 1 ? '' : 's'} after it removed.${isParKey(key) ? '' : ' The path is open — add a step or an Exit with “+”.'}`, 'warn'); },
     onCollapse: id => { if (app.collapsed.has(id)) app.collapsed.delete(id); else app.collapsed.add(id); renderEditor(); },
     onMove: locked ? null : (id, x, y) => { const st = stepOf(v, id); if (!st) return; st.pos = st.pos ?? {}; st.pos[j.orientation] = { x, y }; touch(j); renderEditor(); },
     onField: (id, path, val) => { const st = stepOf(v, id); if (st) commitStepField(j, v, st, path, val); },
-    onConnect: locked ? null : (fromId, toId) => {
-      const src = stepOf(v, fromId), dst = stepOf(v, toId); if (!src || !dst) return;
-      if (dst.type === 'event') { toast('Cannot connect', 'The Event entry has no incoming connection.', 'warn'); return; }
-      if (fromId === toId || descendants(v, toId).has(fromId)) { toast('Cannot connect', 'That would make a loop; journeys only go forward.', 'warn'); return; }
-      CUR_V = v;
-      let edge = v.edges.find(e => e.from === fromId && !e.to) // an open path first
-        ?? outletsOf(src, v).map(o => edgeOut(v, fromId, o.key) ?? E(fromId, null, o.key)).find(e => !e.to);
-      if (!edge) { if (!canParallel(src)) { toast('No free path', 'Every path of this step is already connected. Remove one with × first.', 'warn'); return; } addParallel(v, src); edge = v.edges[v.edges.length - 1]; }
-      if (!v.edges.includes(edge)) v.edges.push(edge);
-      const old = parentEdge(v, toId); let note = isParKey(edge.label) ? 'Added as a parallel branch.' : '';
-      if (old) { if (isParKey(old.label)) v.edges = v.edges.filter(e => e !== old); else old.to = null; note += ' Its previous connection is now open.'; }
-      edge.to = toId; relayout(v, j); touch(j); renderEditor(); toast('Connected', `${src.name} → ${dst.name}. ${note.trim()}`);
-    },
   });
   const cv = canvasFor('cwrap'); if (cv.versionId !== v.id || cv.orientation !== j.orientation) { cv.fitted = false; cv.versionId = v.id; cv.orientation = j.orientation; }
-  drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, inlineEdit: true, journey: j, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed });
+  // the selected card's path (entry → card) is highlighted on the connectors
+  const hlE = new Set(); if (app.selectedStepId) { const seen = new Set(); let e = parentEdge(v, app.selectedStepId); while (e && !seen.has(e.from)) { hlE.add(`${e.from}:${e.label}`); seen.add(e.from); e = parentEdge(v, e.from); } }
+  drawCanvas('cwrap', buildGraph(v, { collapsed: app.collapsed }), { orientation: j.orientation, editable: !locked, inlineEdit: true, journey: j, selected: app.selectedStepId, invalid, version: v, collapsible: true, collapsed: app.collapsed, highlightEdges: hlE });
   wirePalette(); wireStepPanel(j, v);
   $('vsel').onchange = e => { app.versionId = e.target.value; app.selectedStepId = null; canvasFor('cwrap').fitted = false; renderEditor(); };
 }
@@ -1862,14 +1862,6 @@ function addAfter(fromId, key, type, parallel = false) {
   if (!edge) { edge = E(fromId, null, key); v.edges.push(edge); }
   const step = newStep(type); if (edge.to) insertOnEdge(v, edge, step); else { edge.to = step.id; v.steps.push(step); }
   relayout(v, j); touch(j); app.selectedStepId = step.id; renderEditor();
-}
-/* "+" on a card: fill an open path of the step if it has one, otherwise start a parallel branch */
-function addBranch(stepId, type) {
-  const v = curVersion(); CUR_V = v; const src = stepOf(v, stepId); if (!src) return;
-  const open = outletsOf(src, v).find(o => !edgeOut(v, stepId, o.key)?.to);
-  if (open) { addAfter(stepId, open.key, type); return; }
-  if (!canParallel(src)) { toast('No free path', 'Every path of this step is already connected. Remove one with × first.', 'warn'); return; }
-  addAfter(stepId, '', type, true);
 }
 function addOnEdge(edgeId, type, parallel) { const i = edgeId.indexOf(':'); addAfter(edgeId.slice(0, i), edgeId.slice(i + 1), type, parallel); }
 function stepMenu(x, y, onPick, opts = {}) {
@@ -2082,7 +2074,7 @@ function handleAct(act, arg, el, e) {
     case 'validate': { const issues = validateVersion(v); toast(issues.length ? `${issues.length} issue${issues.length === 1 ? '' : 's'} found` : 'Valid', issues.length ? issues.map(i => '• ' + i.message).join('\n') : 'The journey is ready to submit.', issues.length ? 'warn' : 'ok'); if (issues[0]?.stepId) { app.selectedStepId = issues[0].stepId; renderEditor(); } return; }
     case 'delete-step': if (s && s.type !== 'event') { removeStep(v, s.id); app.selectedStepId = null; relayout(v, j); touch(j); renderEditor(); } return;
     case 'add-next': e.stopPropagation(); stepMenu(e.clientX, e.clientY, type => addAfter(s.id, arg, type)); return;
-    case 'add-par': addParallel(v, s); relayout(v, j); touch(j); renderEditor(); toast('Parallel branch added', 'Add a step or an Exit on the new open path with “+”.'); return;
+    case 'add-par': addParallel(v, s); relayout(v, j); touch(j); renderEditor(); toast('Parallel branch added', 'Add a step or an Exit on the new path with its “+ Add step” card.'); return;
     case 'remove-par': { const edge = edgeOut(v, s.id, arg); if (!edge) return; const drop = new Set(edge.to ? [edge.to, ...descendants(v, edge.to)] : []); v.steps = v.steps.filter(x => !drop.has(x.id)); v.edges = v.edges.filter(x => x !== edge && !drop.has(x.from) && !drop.has(x.to)); relayout(v, j); touch(j); renderEditor(); return; }
     case 'copy-ph': navigator.clipboard?.writeText(arg).catch(() => {}); toast('Copied', `${arg} — paste it into content outside this prototype.`); return;
     case 'set-channel': if (s && canEdit(v, s, 'channel') && s.config.channel !== arg) { s.config.channel = arg; s.config.contentId = defaultContentFor(arg)?.id ?? null; touch(j); renderEditor(); } return;

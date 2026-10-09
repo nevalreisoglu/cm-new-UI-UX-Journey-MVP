@@ -14,7 +14,10 @@ test('new journey → build → validate → submit → approve → content-only
   await expect(page.locator('#crumb')).toContainText('PROSPECT DATAMART');
   await expect(page.locator('#valbar')).toHaveClass(/ok/);
 
-  // "+" on the connection → Delivery with the channel default preselected
+  // "+" appears on hover of the connection → Delivery with the channel default preselected
+  await expect(page.locator('.eplus').first()).toHaveCSS('opacity', '0'); // hidden until the connector is hovered
+  await page.locator('.eplus').first().hover({ force: true });
+  await expect(page.locator('.eplus').first()).toHaveCSS('opacity', '1');
   await page.locator('.eplus').first().click();
   await page.locator('.menu.stepmenu button[data-type="delivery"]').click();
   await page.waitForTimeout(200);
@@ -36,14 +39,14 @@ test('new journey → build → validate → submit → approve → content-only
   await page.locator('.menu.stepmenu button[data-type="shuffleSplit"]').click();
   await page.waitForTimeout(200);
   expect(await page.locator('.node').count()).toBe(4);
-  expect(await page.locator('.endmark').count()).toBe(1);
+  expect(await page.locator('.ghost').count()).toBe(1); // open path ends with a ghost "+ Add step" card
   await page.click('button[data-act="sh-even"]');
   await page.click('.jinfo .ph button[data-act="delete-step"]');
   await page.waitForTimeout(200);
   expect(await page.locator('.node').count()).toBe(3);
 
   // drag from the palette onto a connection
-  await page.locator('#palette button[data-type="wait"]').dragTo(page.locator('.eplus').first());
+  await page.locator('#palette button[data-type="wait"]').dragTo(page.locator('.eplus').first(), { force: true });
   await page.waitForTimeout(200);
   expect(await page.locator('.node').count()).toBe(4);
 

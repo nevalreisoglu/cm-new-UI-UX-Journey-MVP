@@ -14,6 +14,17 @@ for (const width of [1280, 1440]) {
     await page.waitForTimeout(300);
     await page.click('.node[data-id="ab14-fr-email"] rect.head');
     await page.screenshot({ path: shot('editor-active', width) });
+    // connectors: orthogonal, labelled branches, both orientations of the abandonment journey
+    expect(await page.locator('.edge path.ln').count()).toBeGreaterThan(20);
+    expect(await page.locator('.edge path.ln[d*="C"]').count()).toBe(0); // no curves
+    await expect(page.locator('.edge rect.pill').first()).toBeVisible();
+    expect(await page.locator('.edge.hl').count()).toBeGreaterThan(1); // the selected card's path is highlighted
+    await page.screenshot({ path: shot('editor-abandon-horizontal', width) });
+    await page.click('button[data-act="orient"][data-arg="TB"]');
+    await page.waitForTimeout(300);
+    await page.screenshot({ path: shot('editor-abandon-vertical', width) });
+    await page.click('button[data-act="orient"][data-arg="LR"]');
+    await page.waitForTimeout(200);
     await page.click('.nav button[data-view="journeys"]');
     await page.click('#jl-tabs button[data-arg="draft"]');
     await page.click('tr.row[data-jid="j-planchange"] .t1');

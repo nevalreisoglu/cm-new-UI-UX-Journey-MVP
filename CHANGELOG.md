@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.4 — connectors
+- Orthogonal connectors (trunk → spine → branch) with label pills, fixed column / row spacing,
+  hover-only "+" on connections, ghost "+ Add step" cards on open paths, selected path
+  highlighted in the CTA colour; ports, card "+" and connector "×" removed. Zoom label fixed.
+- Playwright screenshots of the abandonment journey in both orientations.
+
 ## v0.3 — review round
 - Free positioning in Drafts, × on cards, lock hint; "+ New journey" opens the editor directly;
   contact list = an existing datamart; node cards edit their key settings inline; one Wait step

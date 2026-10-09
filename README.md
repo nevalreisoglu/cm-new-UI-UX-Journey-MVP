@@ -107,6 +107,11 @@ Where the brief was ambiguous the simpler behaviour was chosen (see also `docs/d
     before the timeout (seeded); **Wait for segment match** uses the same mock segment
     membership as the segment split. Times are UTC. Priority wait is out of scope.
 19. **Masked contact ids** (`CUS-****4821`) are the ids themselves; search matches them.
+20. **Column spacing** is derived once per canvas from the widest branch label (pills are
+    truncated at 24 characters, full name on hover), so a journey with long segment names
+    gets wider columns than one without splits.
+21. **Free-positioned cards** keep the elbow routing; a card dragged behind its parent is
+    routed around it. Parallel branches are added from the panel only (no drag-to-connect).
 
 ## Out of scope
 

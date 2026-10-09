@@ -152,23 +152,32 @@ Shuffle · Action: Control group, Exit.
 - **Auto-layout by default** (`layoutTree`); in a Draft a step can be dragged to a free position (saved per step and orientation); *Auto-layout* in the toolbar resets, and any structural change (add / remove a step or branch) resets too. Horizontal (default) / Vertical
   toggle, saved per journey. Zoom out / Zoom in / Fit via CSS transform; pan by drag on the
   background. Collapse / expand a split path.
-- Add a step three ways: drag from the palette onto a connector; "+" on a connector (menu of
-  step types); "Add next step" in the selected step's panel. A connector also carries a "×"
-  that removes it together with the steps after it; the path stays open (dashed) until a step
-  or an Exit is added.
-- **Connect by drag:** every card except Exit / Control group has an orange out port; drag it
-  onto another card to connect. An open path of the source is used first, otherwise a parallel
-  branch is added; the target's previous incoming connection is left open. Loops and connecting
-  into the Event entry are refused.
+- **Connectors — clean and orthogonal, like Symplify.** Elbow paths only, 1.5 px, `--conn`
+  (a darker shade of `--line`), no curves. Horizontal: right-centre of a card to left-centre of
+  the next; vertical: bottom-centre to top-centre. Fixed column (rank) and row spacing, cards of
+  one column on the same x, so a single next step sits on the same line and gets a straight
+  connector. A split sends one short trunk out of its card, then a spine across, and each branch
+  leaves the spine towards its card; every branch carries a small label pill at its start
+  (`A · Langue Français`, `Remaining`, `Received` / `Timeout`, `Opened`, `90 %`) with the same
+  path letters as inside the card. The SVG lines sit under the cards in the same transform, so
+  pan / zoom keep them crisp (`vector-effect: non-scaling-stroke`).
+- Nothing is visible on a connector by default: hovering it shows a single "+" at its midpoint
+  (menu of step types). Add a step three ways: that "+"; drag from the palette onto a connector;
+  "Add next step" in the selected step's panel. An open path ends with a small ghost card
+  "+ Add step" (dashed `--line` border, neutral) that opens the same menu. No "×" on connectors
+  and no ports / "+" on the cards: a step is deleted only from the card's × (top-right, on
+  hover) or the panel; validation shows only on the card outline and in the validation bar,
+  never on a connector.
+- **Selected card:** 2 px `--cta` outline; the connectors of its path (entry → card) are
+  highlighted in `--cta`.
 - **Parallel branches:** a single-outlet step (Event, Delivery, Duration / Until wait) can have
-  more than one outgoing connection. The "+" on a connection inserts in sequence; the "+" on a
-  card (next to its out port) adds a step on a new branch from that step (an open path first,
-  otherwise a parallel branch); the panel has "Add parallel branch"; "×" on the branch removes it. Contacts take every branch at the same time. Edges of parallel branches carry
-  the labels `∥2`, `∥3`, …; the main connection keeps `""`.
+  more than one outgoing connection: "Add parallel branch" in its panel adds an open path
+  (its ghost card takes the step), "×" on the branch in the panel removes it. Contacts take
+  every branch at the same time. Edges of parallel branches carry the labels `∥2`, `∥3`, …;
+  the main connection keeps `""`.
 - Node card: coloured type header (tokens `--t-*`), name, then its **key settings inline**
   (compact selects / inputs inside the card, like Symplify and the old ECM builder); red
-  outline when invalid. A path ending without Exit is drawn dashed. Cards grow to fit their
-  fields and auto-layout uses the real card size.
+  outline when invalid. Cards grow to fit their fields and auto-layout uses the real card size.
   - Inline fields: Event: event, single / batch, contact list, entry segment · Delivery:
     channel, content · Wait: type, then amount + unit (Duration, window shown as text) /
     until summary / event + timeout / segment + timeout · Segment split: one segment select per path
